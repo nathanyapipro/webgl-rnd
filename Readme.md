@@ -7,7 +7,7 @@ emcc -o ./dist/{OUTPUT}.js ./cpp/{SOURCE}.cpp -s ALLOW_MEMORY_GROWTH=1  -s WASM=
 # Serve output:
 
 ```
-serve .
+node server.js
 ```
 
 Running on: http://localhost:5000
