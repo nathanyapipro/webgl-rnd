@@ -11,9 +11,10 @@
 
         let previewCanvasContext;
 
-        const createCanvas = (width, height, id) => {
+        const createCanvas = (width, height, name) => {
+          const id = `#${name}`;
           const canvas = document.createElement("canvas");
-          canvas.id = id;
+          canvas.id = name;
           canvas.width = width;
           canvas.height = height;
           canvasContainer.appendChild(canvas);
@@ -45,7 +46,6 @@
             canvasContainer.appendChild(canvas);
 
             createCanvas(img.width, img.height, "canvas");
-            // createCanvas("edgeDetect", img.width, img.height);
           });
 
           img.src = src;
@@ -67,15 +67,11 @@
           ccallArrays("loadTexture", null, ["array"], [imageData], {
             heapIn: "HEAPU8",
           });
-          // ccallArrays("detectEdges", null, ["array"], [imageData], {
-          //   heapIn: "HEAPU8",
-          // });
         });
       });
     </script>
   </head>
   <body>
-    <!-- <input id="fileInput" type="file" accept="image/*" value="./image.png" /> -->
     <button id="convert">Convert</button>
     <br />
     <br />

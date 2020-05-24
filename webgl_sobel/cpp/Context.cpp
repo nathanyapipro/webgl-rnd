@@ -130,7 +130,7 @@ Context::Context(int w, int h, char *id)
 #if MAX_WEBGL_VERSION >= 2
   attrs.majorVersion = 2;
 #endif
-  context = emscripten_webgl_create_context("#canvas", &attrs);
+  context = emscripten_webgl_create_context(id, &attrs);
   emscripten_webgl_make_context_current(context);
   assert(context);
 
