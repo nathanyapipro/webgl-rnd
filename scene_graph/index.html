@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html
+  style="
+    display: flex;
+    flex: 1;
+    height: 100%;
+    width: 100%;
+    margin: 0px;
+    padding: 0px;
+  "
+>
+  <head>
+    <title>WebAssembly WebGL Shaders</title>
+    <script src="./wasm-arrays.js"></script>
+    <script src="./cpp/main.js"></script>
+    <script>
+      "use strict";
+      window.addEventListener("wasmLoaded", () => {
+        console.log("wasmLoaded");
+
+        Module.ccall("init", null, ["number", "number"], [500, 500]);
+        console.log("init done");
+      });
+    </script>
+  </head>
+  <body style="display: flex; flex: 1; margin: 0px; padding: 0px;">
+    <canvas id="scene" />
+  </body>
+</html>
