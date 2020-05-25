@@ -27,4 +27,16 @@ extern "C"
   {
     webgl_init(width, height);
   }
+
+  EMSCRIPTEN_KEEPALIVE
+  void updateTranslation(int x, int y)
+  {
+    update_translation(x, y);
+  }
+
+  EMSCRIPTEN_KEEPALIVE
+  void updateRotation(int angle)
+  {
+    update_rotation(angle);
+  }
 }

@@ -16,14 +16,41 @@
     <script>
       "use strict";
       window.addEventListener("wasmLoaded", () => {
-        console.log("wasmLoaded");
+        console.log("WASM LOADED");
+
+        randomTranslation.addEventListener("click", () => {
+          Module.ccall(
+            "updateTranslation",
+            null,
+            ["number", "number"],
+            [Math.random() * 500, Math.random() * 500]
+          );
+        });
+
+        randomRotation.addEventListener("click", () => {
+          Module.ccall(
+            "updateRotation",
+            null,
+            ["number"],
+            [Math.random() * 360]
+          );
+        });
 
         Module.ccall("init", null, ["number", "number"], [500, 500]);
-        console.log("init done");
       });
     </script>
   </head>
-  <body style="display: flex; flex: 1; margin: 0px; padding: 0px;">
+  <body
+    style="
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      margin: 0px;
+      padding: 0px;
+    "
+  >
+    <button id="randomTranslation">Random Transtion</button>
+    <button id="randomRotation">Random Rotation</button>
     <canvas id="scene" />
   </body>
 </html>

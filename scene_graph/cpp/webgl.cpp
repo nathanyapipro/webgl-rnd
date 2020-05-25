@@ -16,7 +16,11 @@ static GLuint fragmentShader;
 static GLint positionLocation;
 static GLint resolutionLocation;
 static GLint colorLocation;
+static GLint translationLocation;
+static GLint rotationLocation;
 static GLuint positionBuffer;
+GLfloat translation[2] = {50.0, 50.0};
+GLfloat rotation[2] = {0, 1};
 
 static GLuint compile_shader(GLenum shaderType, const char *src)
 {
@@ -47,10 +51,19 @@ void clear_screen(float r, float g, float b, float a)
 static const char vertex_shader_2d[] =
     "attribute vec2 a_position;"
     "uniform vec2 u_resolution;"
+    "uniform vec2 u_translation;"
+    "uniform vec2 u_rotation;"
 
     "void main() {"
+    // Rotate the position
+    "vec2 rotatedPosition = vec2("
+    "a_position.x * u_rotation.y + a_position.y * u_rotation.x,"
+    "a_position.y * u_rotation.y - a_position.x * u_rotation.x);"
+
+    // Add in the translation.
+    "vec2 position = rotatedPosition + u_translation;"
     // convert the rectangle points from pixels to 0.0 to 1.0
-    " vec2 zeroToOne = a_position / u_resolution;"
+    " vec2 zeroToOne = position / u_resolution;"
     // convert from 0->1 to 0->2
     " vec2 zeroToTwo = zeroToOne * 2.0;"
     // convert from 0->2 to -1->+1 (clipspace)
@@ -60,9 +73,10 @@ static const char vertex_shader_2d[] =
 
 static const char fragment_shader_2d[] =
     "precision mediump float;"
+    "uniform vec4 u_color;"
 
     "void main() {"
-    " gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);"
+    " gl_FragColor = u_color;"
     "}";
 
 void webgl_init(int width, int height)
@@ -101,17 +115,20 @@ void webgl_init(int width, int height)
 
   positionLocation = glGetAttribLocation(programObject, "a_position");
   resolutionLocation = glGetUniformLocation(programObject, "u_resolution");
-  // colorLocation = glGetUniformLocation(programObject, "u_color");
+  colorLocation = glGetUniformLocation(programObject, "u_color");
+  translationLocation = glGetUniformLocation(
+      programObject, "u_translation");
+  rotationLocation = glGetUniformLocation(programObject, "u_rotation");
 
   glGenBuffers(1, &positionBuffer);
   glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 
-  draw();
-  printf("DONE\n");
+  draw_scene();
 }
 
-void draw()
+void draw_scene()
 {
+  printf("DRAW SCENE\n");
   glViewport(0, 0, canvasWidth, canvasHeight);
 
   // Clear the color buffer
@@ -127,24 +144,65 @@ void draw()
   // Bind the position buffer.
   glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 
-  // Setup a rectangle
-  setRectangle(100.0, 100.0, 100.0, 40.0);
-
   glVertexAttribPointer(
       positionLocation, 2, GL_FLOAT, false, 0, 0);
 
   glUniform2f(resolutionLocation, canvasWidth, canvasHeight);
 
+  // Setup a rectangle
+  setRectangle(100, 100);
+
+  // Set a random color.
+  glUniform4f(colorLocation, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, 1);
+
+  // Set translation
+  glUniform2fv(translationLocation, 1, translation);
+
+  // Set rotation
+  glUniform2fv(rotationLocation, 1, rotation);
+
   // Draw the rectangle.
   glDrawArrays(GL_TRIANGLES, 0, 6);
+
+  // for (int ii = 0; ii < 3; ++ii)
+  // {
+  //   // Setup a random rectangle
+  //   // This will write to positionBuffer because
+  //   // its the last thing we bound on the ARRAY_BUFFER
+  //   // bind point
+  //   setRectangle(
+  //       rand() % 500, rand() % 500, rand() % 100, rand() % 100);
+
+  //   // Set a random color.
+  //   glUniform4f(colorLocation, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, 1);
+
+  //   // Draw the rectangle.
+  //   glDrawArrays(GL_TRIANGLES, 0, 6);
+  // }
 }
 
-void setRectangle(float x, float y, float width, float height)
+void update_translation(int x, int y)
 {
-  float x1 = x;
-  float x2 = x + width;
-  float y1 = y;
-  float y2 = y + height;
+  translation[0] = x;
+  translation[1] = y;
+  draw_scene();
+}
+
+#define PI 3.14159265
+
+void update_rotation(int angle)
+{
+  rotation[0] = cos(angle * PI / 180.0);
+  rotation[1] = sin(angle * PI / 180.0);
+  draw_scene();
+}
+
+void setRectangle(float width, float height)
+{
+  float x1 = -width / 2;
+  float x2 = width / 2;
+  float y1 = -height / 2;
+  float y2 = height / 2;
   GLfloat rectVertices[] = {x1,
                             y1,
                             x2,
