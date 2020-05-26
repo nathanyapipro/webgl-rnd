@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { TextField } from "@material-ui/core";
 import "./App.css";
 
@@ -6,6 +6,7 @@ const CANVAS_WIDTH = 500;
 const CANVAS_HEIGHT = 500;
 
 function App() {
+  const canvasRef = useRef(null);
   const [wasmLoaded, setWasmLoaded] = useState(false);
   const [position, setPosition] = useState([200, 200]);
   const [rotation, setRotation] = useState(0);
@@ -122,6 +123,22 @@ function App() {
     );
   };
 
+  const handleCanvasClick = (e) => {
+    const canvas = canvasRef && canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      console.log(mouseX, mouseY);
+      window.Module.ccall(
+        "updateMouse",
+        null,
+        ["number", "number"],
+        [mouseX, mouseY]
+      );
+    }
+  };
+
   if (!wasmLoaded) {
     return <noscript />;
   }
@@ -129,7 +146,7 @@ function App() {
   return (
     <div className="App">
       <div className="content">
-        <canvas id="scene" />
+        <canvas id="scene" ref={canvasRef} onClick={handleCanvasClick} />
         <div className="controls">
           <TextField
             type="number"

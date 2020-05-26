@@ -45,4 +45,10 @@ extern "C"
   {
     update_scale(x, y);
   }
+
+  EMSCRIPTEN_KEEPALIVE
+  void updateMouse(int x, int y)
+  {
+    update_mouse(x, y);
+  }
 }
