@@ -6,6 +6,7 @@
 #include <string.h>
 #include <assert.h>
 #include "webgl.h"
+#include "utils.cpp"
 
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext;
 static int canvasHeight;
@@ -16,11 +17,11 @@ static GLuint fragmentShader;
 static GLint positionLocation;
 static GLint resolutionLocation;
 static GLint colorLocation;
-static GLint translationLocation;
-static GLint rotationLocation;
+static GLint matrixLocation;
 static GLuint positionBuffer;
-GLfloat translation[2] = {50.0, 50.0};
+GLfloat translation[2] = {200, 200};
 GLfloat rotation[2] = {0, 1};
+GLfloat scale[2] = {100, 100};
 
 static GLuint compile_shader(GLenum shaderType, const char *src)
 {
@@ -49,26 +50,24 @@ void clear_screen(float r, float g, float b, float a)
 
 //Shaders
 static const char vertex_shader_2d[] =
-    "attribute vec2 a_position;"
+    " attribute vec2 a_position;"
+
     "uniform vec2 u_resolution;"
-    "uniform vec2 u_translation;"
-    "uniform vec2 u_rotation;"
+    "uniform mat3 u_matrix;"
 
     "void main() {"
-    // Rotate the position
-    "vec2 rotatedPosition = vec2("
-    "a_position.x * u_rotation.y + a_position.y * u_rotation.x,"
-    "a_position.y * u_rotation.y - a_position.x * u_rotation.x);"
+    // Multiply the position by the matrix.
+    "vec2 position = (u_matrix * vec3(a_position, 1)).xy;"
 
-    // Add in the translation.
-    "vec2 position = rotatedPosition + u_translation;"
-    // convert the rectangle points from pixels to 0.0 to 1.0
-    " vec2 zeroToOne = position / u_resolution;"
+    // convert the position from pixels to 0.0 to 1.0
+    "vec2 zeroToOne = position / u_resolution;"
+
     // convert from 0->1 to 0->2
-    " vec2 zeroToTwo = zeroToOne * 2.0;"
+    "vec2 zeroToTwo = zeroToOne * 2.0;"
+
     // convert from 0->2 to -1->+1 (clipspace)
-    " vec2 clipSpace = zeroToTwo - 1.0;"
-    " gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);"
+    "vec2 clipSpace = zeroToTwo - 1.0;"
+    "gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);"
     "}";
 
 static const char fragment_shader_2d[] =
@@ -116,9 +115,8 @@ void webgl_init(int width, int height)
   positionLocation = glGetAttribLocation(programObject, "a_position");
   resolutionLocation = glGetUniformLocation(programObject, "u_resolution");
   colorLocation = glGetUniformLocation(programObject, "u_color");
-  translationLocation = glGetUniformLocation(
-      programObject, "u_translation");
-  rotationLocation = glGetUniformLocation(programObject, "u_rotation");
+  matrixLocation = glGetUniformLocation(
+      programObject, "u_matrix");
 
   glGenBuffers(1, &positionBuffer);
   glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
@@ -150,35 +148,33 @@ void draw_scene()
   glUniform2f(resolutionLocation, canvasWidth, canvasHeight);
 
   // Setup a rectangle
-  setRectangle(100, 100);
+  set_rectangle();
 
   // Set a random color.
-  glUniform4f(colorLocation, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, 1);
+  glUniform4f(colorLocation, 1.0, 0.0, 0.0, 1);
 
   // Set translation
-  glUniform2fv(translationLocation, 1, translation);
+  float partial_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float trans_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float rot_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float scale_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  matrix_translation(translation[0], translation[1], trans_matrix);
+  matrix_rotation(rotation[0], rotation[1], rot_matrix);
+  matrix_scaling(scale[0], scale[1], scale_matrix);
 
-  // Set rotation
-  glUniform2fv(rotationLocation, 1, rotation);
+  // Multiply the matrices.
+  matrix_multiply(trans_matrix, rot_matrix, partial_matrix);
+  // printf("Partial Matrix\n %f %f %f\n %f %f %f\n %f %f %f\n",
+  //        partial_matrix[0][0], partial_matrix[1][0], partial_matrix[2][0],
+  //        partial_matrix[0][1], partial_matrix[1][1], partial_matrix[2][1],
+  //        partial_matrix[0][2], partial_matrix[0][2], partial_matrix[2][2]);
+  matrix_multiply(partial_matrix, scale_matrix, matrix);
+
+  glUniformMatrix3fv(matrixLocation, 1, false, matrix);
 
   // Draw the rectangle.
   glDrawArrays(GL_TRIANGLES, 0, 6);
-
-  // for (int ii = 0; ii < 3; ++ii)
-  // {
-  //   // Setup a random rectangle
-  //   // This will write to positionBuffer because
-  //   // its the last thing we bound on the ARRAY_BUFFER
-  //   // bind point
-  //   setRectangle(
-  //       rand() % 500, rand() % 500, rand() % 100, rand() % 100);
-
-  //   // Set a random color.
-  //   glUniform4f(colorLocation, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, float(rand() % 10) / 10.0, 1);
-
-  //   // Draw the rectangle.
-  //   glDrawArrays(GL_TRIANGLES, 0, 6);
-  // }
 }
 
 void update_translation(int x, int y)
@@ -188,21 +184,26 @@ void update_translation(int x, int y)
   draw_scene();
 }
 
-#define PI 3.14159265
-
 void update_rotation(int angle)
 {
-  rotation[0] = cos(angle * PI / 180.0);
-  rotation[1] = sin(angle * PI / 180.0);
+  rotation[0] = sin(angle * PI / 180.0);
+  rotation[1] = cos(angle * PI / 180.0);
   draw_scene();
 }
 
-void setRectangle(float width, float height)
+void update_scale(int x, int y)
 {
-  float x1 = -width / 2;
-  float x2 = width / 2;
-  float y1 = -height / 2;
-  float y2 = height / 2;
+  scale[0] = x;
+  scale[1] = y;
+  draw_scene();
+}
+
+void set_rectangle()
+{
+  float x1 = 0;
+  float x2 = 1;
+  float y1 = 0;
+  float y2 = 1;
   GLfloat rectVertices[] = {x1,
                             y1,
                             x2,

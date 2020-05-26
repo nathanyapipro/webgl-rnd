@@ -39,4 +39,10 @@ extern "C"
   {
     update_rotation(angle);
   }
+
+  EMSCRIPTEN_KEEPALIVE
+  void updateScale(int x, int y)
+  {
+    update_scale(x, y);
+  }
 }
