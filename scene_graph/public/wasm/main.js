@@ -1366,11 +1366,11 @@ function updateGlobalBufferAndViews(buf) {
 }
 
 var STATIC_BASE = 1024,
-    STACK_BASE = 221552,
+    STACK_BASE = 221568,
     STACKTOP = STACK_BASE,
-    STACK_MAX = 5464432,
-    DYNAMIC_BASE = 5464432,
-    DYNAMICTOP_PTR = 221360;
+    STACK_MAX = 5464448,
+    DYNAMIC_BASE = 5464448,
+    DYNAMICTOP_PTR = 221376;
 
 assert(STACK_BASE % 16 === 0, 'stack must start aligned');
 assert(DYNAMIC_BASE % 16 === 0, 'heap must start aligned');
@@ -1963,7 +1963,7 @@ function _emscripten_asm_const_i(code) {
 
 
 
-// STATICTOP = STATIC_BASE + 220528;
+// STATICTOP = STATIC_BASE + 220544;
 /* global initializers */  __ATINIT__.push({ func: function() { globalCtors() } });
 
 
@@ -1974,7 +1974,7 @@ function _emscripten_asm_const_i(code) {
 
 
 /* no memory initializer */
-var tempDoublePtr = 221536;
+var tempDoublePtr = 221552;
 
 function copyTempFloat(ptr) { // functions, because inlining this code increases code size too much
   HEAP8[tempDoublePtr] = HEAP8[ptr];
@@ -8670,6 +8670,21 @@ function copyTempDouble(ptr) {
     }
   Module["_glBindBuffer"] = _glBindBuffer;
 
+  function _glBindFramebuffer(target, framebuffer) {
+  
+      // defaultFbo may not be present if 'renderViaOffscreenBackBuffer' was not enabled during context creation time,
+      // i.e. setting -s OFFSCREEN_FRAMEBUFFER=1 at compilation time does not yet mandate that offscreen back buffer
+      // is being used, but that is ultimately decided at context creation time.
+      GLctx.bindFramebuffer(target, framebuffer ? GL.framebuffers[framebuffer] : GL.currentContext.defaultFbo);
+  
+    }
+  Module["_glBindFramebuffer"] = _glBindFramebuffer;
+
+  function _glBindTexture(target, texture) {
+      GLctx.bindTexture(target, GL.textures[texture]);
+    }
+  Module["_glBindTexture"] = _glBindTexture;
+
   function _glBufferData(target, size, data, usage) {
       if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
         if (data) {
@@ -8722,12 +8737,21 @@ function copyTempDouble(ptr) {
     }
   Module["_glDrawArrays"] = _glDrawArrays;
 
+  function _glEnable(x0) { GLctx['enable'](x0) }
+  Module["_glEnable"] = _glEnable;
+
   function _glEnableVertexAttribArray(index) {
       var cb = GL.currentContext.clientBuffers[index];
       cb.enabled = true;
       GLctx.enableVertexAttribArray(index);
     }
   Module["_glEnableVertexAttribArray"] = _glEnableVertexAttribArray;
+
+  function _glFramebufferTexture2D(target, attachment, textarget, texture, level) {
+      GLctx.framebufferTexture2D(target, attachment, textarget,
+                                      GL.textures[texture], level);
+    }
+  Module["_glFramebufferTexture2D"] = _glFramebufferTexture2D;
 
   
   function __glGenObject(n, buffers, createFunction, objectTable
@@ -8749,6 +8773,18 @@ function copyTempDouble(ptr) {
         );
     }
   Module["_glGenBuffers"] = _glGenBuffers;
+
+  function _glGenFramebuffers(n, ids) {
+      __glGenObject(n, ids, 'createFramebuffer', GL.framebuffers
+        );
+    }
+  Module["_glGenFramebuffers"] = _glGenFramebuffers;
+
+  function _glGenTextures(n, textures) {
+      __glGenObject(n, textures, 'createTexture', GL.textures
+        );
+    }
+  Module["_glGenTextures"] = _glGenTextures;
 
   function _glGetAttribLocation(program, name) {
       return GLctx.getAttribLocation(GL.programs[program], UTF8ToString(name));
@@ -8788,6 +8824,100 @@ function copyTempDouble(ptr) {
       GLctx.shaderSource(GL.shaders[shader], source);
     }
   Module["_glShaderSource"] = _glShaderSource;
+
+  
+  
+  function __computeUnpackAlignedImageSize(width, height, sizePerPixel, alignment) {
+      function roundedToNextMultipleOf(x, y) {
+        return (x + y - 1) & -y;
+      }
+      var plainRowSize = width * sizePerPixel;
+      var alignedRowSize = roundedToNextMultipleOf(plainRowSize, alignment);
+      return height * alignedRowSize;
+    }
+  Module["__computeUnpackAlignedImageSize"] = __computeUnpackAlignedImageSize;
+  
+  function __colorChannelsInGlTextureFormat(format) {
+      // Micro-optimizations for size: map format to size by subtracting smallest enum value (0x1902) from all values first.
+      // Also omit the most common size value (1) from the list, which is assumed by formats not on the list.
+      var colorChannels = {
+        // 0x1902 /* GL_DEPTH_COMPONENT */ - 0x1902: 1,
+        // 0x1906 /* GL_ALPHA */ - 0x1902: 1,
+        5: 3,
+        6: 4,
+        // 0x1909 /* GL_LUMINANCE */ - 0x1902: 1,
+        8: 2,
+        29502: 3,
+        29504: 4,
+        // 0x1903 /* GL_RED */ - 0x1902: 1,
+        26917: 2,
+        26918: 2,
+        // 0x8D94 /* GL_RED_INTEGER */ - 0x1902: 1,
+        29846: 3,
+        29847: 4
+      };
+      return colorChannels[format - 0x1902]||1;
+    }
+  Module["__colorChannelsInGlTextureFormat"] = __colorChannelsInGlTextureFormat;
+  
+  function __heapObjectForWebGLType(type) {
+      // Micro-optimization for size: Subtract lowest GL enum number (0x1400/* GL_BYTE */) from type to compare
+      // smaller values for the heap, for shorter generated code size.
+      // Also the type HEAPU16 is not tested for explicitly, but any unrecognized type will return out HEAPU16.
+      // (since most types are HEAPU16)
+      type -= 0x1400;
+      if (type == 0) return HEAP8;
+  
+      if (type == 1) return HEAPU8;
+  
+      if (type == 2) return HEAP16;
+  
+      if (type == 4) return HEAP32;
+  
+      if (type == 6) return HEAPF32;
+  
+      if (type == 5
+        || type == 28922
+        || type == 28520
+        || type == 30779
+        || type == 30782
+        )
+        return HEAPU32;
+  
+      return HEAPU16;
+    }
+  Module["__heapObjectForWebGLType"] = __heapObjectForWebGLType;
+  
+  function __heapAccessShiftForWebGLHeap(heap) {
+      return 31 - Math.clz32(heap.BYTES_PER_ELEMENT);
+    }
+  Module["__heapAccessShiftForWebGLHeap"] = __heapAccessShiftForWebGLHeap;function emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) {
+      var heap = __heapObjectForWebGLType(type);
+      var shift = __heapAccessShiftForWebGLHeap(heap);
+      var byteSize = 1<<shift;
+      var sizePerPixel = __colorChannelsInGlTextureFormat(format) * byteSize;
+      var bytes = __computeUnpackAlignedImageSize(width, height, sizePerPixel, GL.unpackAlignment);
+      return heap.subarray(pixels >> shift, pixels + bytes >> shift);
+    }
+  Module["emscriptenWebGLGetTexPixelData"] = emscriptenWebGLGetTexPixelData;function _glTexImage2D(target, level, internalFormat, width, height, border, format, type, pixels) {
+      if (GL.currentContext.version >= 2) {
+        // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
+        if (GLctx.currentPixelUnpackBufferBinding) {
+          GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixels);
+        } else if (pixels) {
+          var heap = __heapObjectForWebGLType(type);
+          GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, heap, pixels >> __heapAccessShiftForWebGLHeap(heap));
+        } else {
+          GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, null);
+        }
+        return;
+      }
+      GLctx.texImage2D(target, level, internalFormat, width, height, border, format, type, pixels ? emscriptenWebGLGetTexPixelData(type, format, width, height, pixels, internalFormat) : null);
+    }
+  Module["_glTexImage2D"] = _glTexImage2D;
+
+  function _glTexParameteri(x0, x1, x2) { GLctx['texParameteri'](x0, x1, x2) }
+  Module["_glTexParameteri"] = _glTexParameteri;
 
   function _glUniform2f(location, v0, v1) {
       GLctx.uniform2f(GL.uniforms[location], v0, v1);
@@ -8856,7 +8986,7 @@ function copyTempDouble(ptr) {
   Module["_glViewport"] = _glViewport;
 
   
-  var ___tm_timezone=(stringToUTF8("GMT", 221440, 4), 221440);
+  var ___tm_timezone=(stringToUTF8("GMT", 221456, 4), 221456);
   Module["___tm_timezone"] = ___tm_timezone;function _gmtime_r(time, tmPtr) {
       var date = new Date(HEAP32[((time)>>2)]*1000);
       HEAP32[((tmPtr)>>2)]=date.getUTCSeconds();
@@ -9987,7 +10117,7 @@ function invoke_viijii(index,a1,a2,a3,a4,a5,a6) {
 
 var asmGlobalArg = {};
 
-var asmLibraryArg = { "___assert_fail": ___assert_fail, "___buildEnvironment": ___buildEnvironment, "___clock_gettime": ___clock_gettime, "___map_file": ___map_file, "___sys__newselect": ___sys__newselect, "___sys_access": ___sys_access, "___sys_acct": ___sys_acct, "___sys_chdir": ___sys_chdir, "___sys_chmod": ___sys_chmod, "___sys_chown32": ___sys_chown32, "___sys_dup": ___sys_dup, "___sys_dup2": ___sys_dup2, "___sys_dup3": ___sys_dup3, "___sys_fadvise64_64": ___sys_fadvise64_64, "___sys_fallocate": ___sys_fallocate, "___sys_fchdir": ___sys_fchdir, "___sys_fchmod": ___sys_fchmod, "___sys_fchmodat": ___sys_fchmodat, "___sys_fchown32": ___sys_fchown32, "___sys_fchownat": ___sys_fchownat, "___sys_fcntl64": ___sys_fcntl64, "___sys_fdatasync": ___sys_fdatasync, "___sys_fstat64": ___sys_fstat64, "___sys_fstatat64": ___sys_fstatat64, "___sys_fstatfs64": ___sys_fstatfs64, "___sys_ftruncate64": ___sys_ftruncate64, "___sys_getcwd": ___sys_getcwd, "___sys_getdents64": ___sys_getdents64, "___sys_getegid32": ___sys_getegid32, "___sys_geteuid32": ___sys_geteuid32, "___sys_getgid32": ___sys_getgid32, "___sys_getgroups32": ___sys_getgroups32, "___sys_getpgid": ___sys_getpgid, "___sys_getpid": ___sys_getpid, "___sys_getppid": ___sys_getppid, "___sys_getpriority": ___sys_getpriority, "___sys_getresgid32": ___sys_getresgid32, "___sys_getresuid32": ___sys_getresuid32, "___sys_getrusage": ___sys_getrusage, "___sys_getsid": ___sys_getsid, "___sys_getuid32": ___sys_getuid32, "___sys_ioctl": ___sys_ioctl, "___sys_lchown32": ___sys_lchown32, "___sys_link": ___sys_link, "___sys_linkat": ___sys_linkat, "___sys_lstat64": ___sys_lstat64, "___sys_madvise1": ___sys_madvise1, "___sys_mincore": ___sys_mincore, "___sys_mkdir": ___sys_mkdir, "___sys_mkdirat": ___sys_mkdirat, "___sys_mknod": ___sys_mknod, "___sys_mknodat": ___sys_mknodat, "___sys_mlock": ___sys_mlock, "___sys_mlockall": ___sys_mlockall, "___sys_mmap2": ___sys_mmap2, "___sys_mprotect": ___sys_mprotect, "___sys_mremap": ___sys_mremap, "___sys_msync": ___sys_msync, "___sys_munlock": ___sys_munlock, "___sys_munlockall": ___sys_munlockall, "___sys_munmap": ___sys_munmap, "___sys_nice": ___sys_nice, "___sys_open": ___sys_open, "___sys_openat": ___sys_openat, "___sys_pause": ___sys_pause, "___sys_pipe": ___sys_pipe, "___sys_pipe2": ___sys_pipe2, "___sys_poll": ___sys_poll, "___sys_pread64": ___sys_pread64, "___sys_preadv": ___sys_preadv, "___sys_prlimit64": ___sys_prlimit64, "___sys_pselect6": ___sys_pselect6, "___sys_pwrite64": ___sys_pwrite64, "___sys_pwritev": ___sys_pwritev, "___sys_read": ___sys_read, "___sys_readlink": ___sys_readlink, "___sys_readlinkat": ___sys_readlinkat, "___sys_recvmmsg": ___sys_recvmmsg, "___sys_rename": ___sys_rename, "___sys_renameat": ___sys_renameat, "___sys_rmdir": ___sys_rmdir, "___sys_sendmmsg": ___sys_sendmmsg, "___sys_setdomainname": ___sys_setdomainname, "___sys_setpgid": ___sys_setpgid, "___sys_setpriority": ___sys_setpriority, "___sys_setrlimit": ___sys_setrlimit, "___sys_setsid": ___sys_setsid, "___sys_socketcall": ___sys_socketcall, "___sys_stat64": ___sys_stat64, "___sys_statfs64": ___sys_statfs64, "___sys_symlink": ___sys_symlink, "___sys_symlinkat": ___sys_symlinkat, "___sys_sync": ___sys_sync, "___sys_truncate64": ___sys_truncate64, "___sys_ugetrlimit": ___sys_ugetrlimit, "___sys_umask": ___sys_umask, "___sys_uname": ___sys_uname, "___sys_unlink": ___sys_unlink, "___sys_unlinkat": ___sys_unlinkat, "___sys_utimensat": ___sys_utimensat, "___sys_wait4": ___sys_wait4, "___syscall10": ___syscall10, "___syscall102": ___syscall102, "___syscall114": ___syscall114, "___syscall12": ___syscall12, "___syscall121": ___syscall121, "___syscall122": ___syscall122, "___syscall125": ___syscall125, "___syscall132": ___syscall132, "___syscall133": ___syscall133, "___syscall14": ___syscall14, "___syscall142": ___syscall142, "___syscall144": ___syscall144, "___syscall147": ___syscall147, "___syscall148": ___syscall148, "___syscall15": ___syscall15, "___syscall150": ___syscall150, "___syscall151": ___syscall151, "___syscall152": ___syscall152, "___syscall153": ___syscall153, "___syscall163": ___syscall163, "___syscall168": ___syscall168, "___syscall180": ___syscall180, "___syscall181": ___syscall181, "___syscall183": ___syscall183, "___syscall191": ___syscall191, "___syscall192": ___syscall192, "___syscall193": ___syscall193, "___syscall194": ___syscall194, "___syscall195": ___syscall195, "___syscall196": ___syscall196, "___syscall197": ___syscall197, "___syscall198": ___syscall198, "___syscall199": ___syscall199, "___syscall20": ___syscall20, "___syscall200": ___syscall200, "___syscall201": ___syscall201, "___syscall202": ___syscall202, "___syscall205": ___syscall205, "___syscall207": ___syscall207, "___syscall209": ___syscall209, "___syscall211": ___syscall211, "___syscall212": ___syscall212, "___syscall218": ___syscall218, "___syscall219": ___syscall219, "___syscall220": ___syscall220, "___syscall221": ___syscall221, "___syscall268": ___syscall268, "___syscall269": ___syscall269, "___syscall272": ___syscall272, "___syscall29": ___syscall29, "___syscall295": ___syscall295, "___syscall296": ___syscall296, "___syscall297": ___syscall297, "___syscall298": ___syscall298, "___syscall3": ___syscall3, "___syscall300": ___syscall300, "___syscall301": ___syscall301, "___syscall302": ___syscall302, "___syscall303": ___syscall303, "___syscall304": ___syscall304, "___syscall305": ___syscall305, "___syscall306": ___syscall306, "___syscall308": ___syscall308, "___syscall320": ___syscall320, "___syscall324": ___syscall324, "___syscall33": ___syscall33, "___syscall330": ___syscall330, "___syscall331": ___syscall331, "___syscall333": ___syscall333, "___syscall334": ___syscall334, "___syscall337": ___syscall337, "___syscall34": ___syscall34, "___syscall340": ___syscall340, "___syscall345": ___syscall345, "___syscall36": ___syscall36, "___syscall38": ___syscall38, "___syscall39": ___syscall39, "___syscall40": ___syscall40, "___syscall41": ___syscall41, "___syscall42": ___syscall42, "___syscall5": ___syscall5, "___syscall51": ___syscall51, "___syscall54": ___syscall54, "___syscall57": ___syscall57, "___syscall60": ___syscall60, "___syscall63": ___syscall63, "___syscall64": ___syscall64, "___syscall66": ___syscall66, "___syscall75": ___syscall75, "___syscall77": ___syscall77, "___syscall83": ___syscall83, "___syscall85": ___syscall85, "___syscall9": ___syscall9, "___syscall91": ___syscall91, "___syscall94": ___syscall94, "___syscall96": ___syscall96, "___syscall97": ___syscall97, "___wait": ___wait, "___wasi_fd_close": ___wasi_fd_close, "___wasi_fd_fdstat_get": ___wasi_fd_fdstat_get, "___wasi_fd_read": ___wasi_fd_read, "___wasi_fd_seek": ___wasi_fd_seek, "___wasi_fd_sync": ___wasi_fd_sync, "___wasi_fd_write": ___wasi_fd_write, "__addDays": __addDays, "__arraySum": __arraySum, "__exit": __exit, "__findCanvasEventTarget": __findCanvasEventTarget, "__findEventTarget": __findEventTarget, "__getExecutableName": __getExecutableName, "__glGenObject": __glGenObject, "__inet_ntop4_raw": __inet_ntop4_raw, "__inet_ntop6_raw": __inet_ntop6_raw, "__inet_pton4_raw": __inet_pton4_raw, "__inet_pton6_raw": __inet_pton6_raw, "__isLeapYear": __isLeapYear, "__maybeCStringToJsString": __maybeCStringToJsString, "__memory_base": 1024, "__read_sockaddr": __read_sockaddr, "__table_base": 0, "__webgl_enable_ANGLE_instanced_arrays": __webgl_enable_ANGLE_instanced_arrays, "__webgl_enable_OES_vertex_array_object": __webgl_enable_OES_vertex_array_object, "__webgl_enable_WEBGL_draw_buffers": __webgl_enable_WEBGL_draw_buffers, "__webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance": __webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance, "__write_sockaddr": __write_sockaddr, "_abort": _abort, "_clock_gettime": _clock_gettime, "_emscripten_asm_const_i": _emscripten_asm_const_i, "_emscripten_asm_const_int": _emscripten_asm_const_int, "_emscripten_get_heap_size": _emscripten_get_heap_size, "_emscripten_get_now": _emscripten_get_now, "_emscripten_memcpy_big": _emscripten_memcpy_big, "_emscripten_resize_heap": _emscripten_resize_heap, "_emscripten_set_canvas_element_size": _emscripten_set_canvas_element_size, "_emscripten_set_element_css_size": _emscripten_set_element_css_size, "_emscripten_webgl_create_context": _emscripten_webgl_create_context, "_emscripten_webgl_do_create_context": _emscripten_webgl_do_create_context, "_emscripten_webgl_init_context_attributes": _emscripten_webgl_init_context_attributes, "_emscripten_webgl_make_context_current": _emscripten_webgl_make_context_current, "_exit": _exit, "_fd_close": _fd_close, "_fd_fdstat_get": _fd_fdstat_get, "_fd_read": _fd_read, "_fd_seek": _fd_seek, "_fd_sync": _fd_sync, "_fd_write": _fd_write, "_fork": _fork, "_fpathconf": _fpathconf, "_getenv": _getenv, "_getnameinfo": _getnameinfo, "_glAttachShader": _glAttachShader, "_glBindAttribLocation": _glBindAttribLocation, "_glBindBuffer": _glBindBuffer, "_glBufferData": _glBufferData, "_glClear": _glClear, "_glClearColor": _glClearColor, "_glCompileShader": _glCompileShader, "_glCreateProgram": _glCreateProgram, "_glCreateShader": _glCreateShader, "_glDrawArrays": _glDrawArrays, "_glEnableVertexAttribArray": _glEnableVertexAttribArray, "_glGenBuffers": _glGenBuffers, "_glGetAttribLocation": _glGetAttribLocation, "_glGetUniformLocation": _glGetUniformLocation, "_glLinkProgram": _glLinkProgram, "_glShaderSource": _glShaderSource, "_glUniform2f": _glUniform2f, "_glUniform4f": _glUniform4f, "_glUniformMatrix3fv": _glUniformMatrix3fv, "_glUseProgram": _glUseProgram, "_glVertexAttribPointer": _glVertexAttribPointer, "_glViewport": _glViewport, "_gmtime_r": _gmtime_r, "_inet_addr": _inet_addr, "_llvm_cos_f64": _llvm_cos_f64, "_llvm_sin_f64": _llvm_sin_f64, "_llvm_stackrestore": _llvm_stackrestore, "_llvm_stacksave": _llvm_stacksave, "_llvm_trap": _llvm_trap, "_nanosleep": _nanosleep, "_pathconf": _pathconf, "_pthread_cleanup_pop": _pthread_cleanup_pop, "_pthread_cleanup_push": _pthread_cleanup_push, "_pthread_detach": _pthread_detach, "_pthread_join": _pthread_join, "_pthread_mutexattr_destroy": _pthread_mutexattr_destroy, "_pthread_mutexattr_init": _pthread_mutexattr_init, "_pthread_mutexattr_settype": _pthread_mutexattr_settype, "_pthread_setcancelstate": _pthread_setcancelstate, "_pthread_sigmask": _pthread_sigmask, "_setitimer": _setitimer, "_sigfillset": _sigfillset, "_strftime": _strftime, "_strftime_l": _strftime_l, "_sysconf": _sysconf, "_time": _time, "_usleep": _usleep, "_wait": _wait, "_waitpid": _waitpid, "abort": abort, "abortStackOverflow": abortStackOverflow, "getTempRet0": getTempRet0, "invoke_ii": invoke_ii, "invoke_iidiiii": invoke_iidiiii, "invoke_iii": invoke_iii, "invoke_iiii": invoke_iiii, "invoke_iiiii": invoke_iiiii, "invoke_iiiiid": invoke_iiiiid, "invoke_iiiiii": invoke_iiiiii, "invoke_iiiiiid": invoke_iiiiiid, "invoke_iiiiiii": invoke_iiiiiii, "invoke_iiiiiiii": invoke_iiiiiiii, "invoke_iiiiiiiii": invoke_iiiiiiiii, "invoke_iiiiij": invoke_iiiiij, "invoke_iiji": invoke_iiji, "invoke_ji": invoke_ji, "invoke_jiji": invoke_jiji, "invoke_v": invoke_v, "invoke_vi": invoke_vi, "invoke_vii": invoke_vii, "invoke_viii": invoke_viii, "invoke_viiii": invoke_viiii, "invoke_viiiii": invoke_viiiii, "invoke_viiiiii": invoke_viiiiii, "invoke_viijii": invoke_viijii, "memory": wasmMemory, "nullFunc_ii": nullFunc_ii, "nullFunc_iidiiii": nullFunc_iidiiii, "nullFunc_iii": nullFunc_iii, "nullFunc_iiii": nullFunc_iiii, "nullFunc_iiiii": nullFunc_iiiii, "nullFunc_iiiiid": nullFunc_iiiiid, "nullFunc_iiiiii": nullFunc_iiiiii, "nullFunc_iiiiiid": nullFunc_iiiiiid, "nullFunc_iiiiiii": nullFunc_iiiiiii, "nullFunc_iiiiiiii": nullFunc_iiiiiiii, "nullFunc_iiiiiiiii": nullFunc_iiiiiiiii, "nullFunc_iiiiij": nullFunc_iiiiij, "nullFunc_iiji": nullFunc_iiji, "nullFunc_ji": nullFunc_ji, "nullFunc_jiji": nullFunc_jiji, "nullFunc_v": nullFunc_v, "nullFunc_vi": nullFunc_vi, "nullFunc_vii": nullFunc_vii, "nullFunc_viii": nullFunc_viii, "nullFunc_viiii": nullFunc_viiii, "nullFunc_viiiii": nullFunc_viiiii, "nullFunc_viiiiii": nullFunc_viiiiii, "nullFunc_viijii": nullFunc_viijii, "setTempRet0": setTempRet0, "table": wasmTable, "tempDoublePtr": tempDoublePtr };
+var asmLibraryArg = { "___assert_fail": ___assert_fail, "___buildEnvironment": ___buildEnvironment, "___clock_gettime": ___clock_gettime, "___map_file": ___map_file, "___sys__newselect": ___sys__newselect, "___sys_access": ___sys_access, "___sys_acct": ___sys_acct, "___sys_chdir": ___sys_chdir, "___sys_chmod": ___sys_chmod, "___sys_chown32": ___sys_chown32, "___sys_dup": ___sys_dup, "___sys_dup2": ___sys_dup2, "___sys_dup3": ___sys_dup3, "___sys_fadvise64_64": ___sys_fadvise64_64, "___sys_fallocate": ___sys_fallocate, "___sys_fchdir": ___sys_fchdir, "___sys_fchmod": ___sys_fchmod, "___sys_fchmodat": ___sys_fchmodat, "___sys_fchown32": ___sys_fchown32, "___sys_fchownat": ___sys_fchownat, "___sys_fcntl64": ___sys_fcntl64, "___sys_fdatasync": ___sys_fdatasync, "___sys_fstat64": ___sys_fstat64, "___sys_fstatat64": ___sys_fstatat64, "___sys_fstatfs64": ___sys_fstatfs64, "___sys_ftruncate64": ___sys_ftruncate64, "___sys_getcwd": ___sys_getcwd, "___sys_getdents64": ___sys_getdents64, "___sys_getegid32": ___sys_getegid32, "___sys_geteuid32": ___sys_geteuid32, "___sys_getgid32": ___sys_getgid32, "___sys_getgroups32": ___sys_getgroups32, "___sys_getpgid": ___sys_getpgid, "___sys_getpid": ___sys_getpid, "___sys_getppid": ___sys_getppid, "___sys_getpriority": ___sys_getpriority, "___sys_getresgid32": ___sys_getresgid32, "___sys_getresuid32": ___sys_getresuid32, "___sys_getrusage": ___sys_getrusage, "___sys_getsid": ___sys_getsid, "___sys_getuid32": ___sys_getuid32, "___sys_ioctl": ___sys_ioctl, "___sys_lchown32": ___sys_lchown32, "___sys_link": ___sys_link, "___sys_linkat": ___sys_linkat, "___sys_lstat64": ___sys_lstat64, "___sys_madvise1": ___sys_madvise1, "___sys_mincore": ___sys_mincore, "___sys_mkdir": ___sys_mkdir, "___sys_mkdirat": ___sys_mkdirat, "___sys_mknod": ___sys_mknod, "___sys_mknodat": ___sys_mknodat, "___sys_mlock": ___sys_mlock, "___sys_mlockall": ___sys_mlockall, "___sys_mmap2": ___sys_mmap2, "___sys_mprotect": ___sys_mprotect, "___sys_mremap": ___sys_mremap, "___sys_msync": ___sys_msync, "___sys_munlock": ___sys_munlock, "___sys_munlockall": ___sys_munlockall, "___sys_munmap": ___sys_munmap, "___sys_nice": ___sys_nice, "___sys_open": ___sys_open, "___sys_openat": ___sys_openat, "___sys_pause": ___sys_pause, "___sys_pipe": ___sys_pipe, "___sys_pipe2": ___sys_pipe2, "___sys_poll": ___sys_poll, "___sys_pread64": ___sys_pread64, "___sys_preadv": ___sys_preadv, "___sys_prlimit64": ___sys_prlimit64, "___sys_pselect6": ___sys_pselect6, "___sys_pwrite64": ___sys_pwrite64, "___sys_pwritev": ___sys_pwritev, "___sys_read": ___sys_read, "___sys_readlink": ___sys_readlink, "___sys_readlinkat": ___sys_readlinkat, "___sys_recvmmsg": ___sys_recvmmsg, "___sys_rename": ___sys_rename, "___sys_renameat": ___sys_renameat, "___sys_rmdir": ___sys_rmdir, "___sys_sendmmsg": ___sys_sendmmsg, "___sys_setdomainname": ___sys_setdomainname, "___sys_setpgid": ___sys_setpgid, "___sys_setpriority": ___sys_setpriority, "___sys_setrlimit": ___sys_setrlimit, "___sys_setsid": ___sys_setsid, "___sys_socketcall": ___sys_socketcall, "___sys_stat64": ___sys_stat64, "___sys_statfs64": ___sys_statfs64, "___sys_symlink": ___sys_symlink, "___sys_symlinkat": ___sys_symlinkat, "___sys_sync": ___sys_sync, "___sys_truncate64": ___sys_truncate64, "___sys_ugetrlimit": ___sys_ugetrlimit, "___sys_umask": ___sys_umask, "___sys_uname": ___sys_uname, "___sys_unlink": ___sys_unlink, "___sys_unlinkat": ___sys_unlinkat, "___sys_utimensat": ___sys_utimensat, "___sys_wait4": ___sys_wait4, "___syscall10": ___syscall10, "___syscall102": ___syscall102, "___syscall114": ___syscall114, "___syscall12": ___syscall12, "___syscall121": ___syscall121, "___syscall122": ___syscall122, "___syscall125": ___syscall125, "___syscall132": ___syscall132, "___syscall133": ___syscall133, "___syscall14": ___syscall14, "___syscall142": ___syscall142, "___syscall144": ___syscall144, "___syscall147": ___syscall147, "___syscall148": ___syscall148, "___syscall15": ___syscall15, "___syscall150": ___syscall150, "___syscall151": ___syscall151, "___syscall152": ___syscall152, "___syscall153": ___syscall153, "___syscall163": ___syscall163, "___syscall168": ___syscall168, "___syscall180": ___syscall180, "___syscall181": ___syscall181, "___syscall183": ___syscall183, "___syscall191": ___syscall191, "___syscall192": ___syscall192, "___syscall193": ___syscall193, "___syscall194": ___syscall194, "___syscall195": ___syscall195, "___syscall196": ___syscall196, "___syscall197": ___syscall197, "___syscall198": ___syscall198, "___syscall199": ___syscall199, "___syscall20": ___syscall20, "___syscall200": ___syscall200, "___syscall201": ___syscall201, "___syscall202": ___syscall202, "___syscall205": ___syscall205, "___syscall207": ___syscall207, "___syscall209": ___syscall209, "___syscall211": ___syscall211, "___syscall212": ___syscall212, "___syscall218": ___syscall218, "___syscall219": ___syscall219, "___syscall220": ___syscall220, "___syscall221": ___syscall221, "___syscall268": ___syscall268, "___syscall269": ___syscall269, "___syscall272": ___syscall272, "___syscall29": ___syscall29, "___syscall295": ___syscall295, "___syscall296": ___syscall296, "___syscall297": ___syscall297, "___syscall298": ___syscall298, "___syscall3": ___syscall3, "___syscall300": ___syscall300, "___syscall301": ___syscall301, "___syscall302": ___syscall302, "___syscall303": ___syscall303, "___syscall304": ___syscall304, "___syscall305": ___syscall305, "___syscall306": ___syscall306, "___syscall308": ___syscall308, "___syscall320": ___syscall320, "___syscall324": ___syscall324, "___syscall33": ___syscall33, "___syscall330": ___syscall330, "___syscall331": ___syscall331, "___syscall333": ___syscall333, "___syscall334": ___syscall334, "___syscall337": ___syscall337, "___syscall34": ___syscall34, "___syscall340": ___syscall340, "___syscall345": ___syscall345, "___syscall36": ___syscall36, "___syscall38": ___syscall38, "___syscall39": ___syscall39, "___syscall40": ___syscall40, "___syscall41": ___syscall41, "___syscall42": ___syscall42, "___syscall5": ___syscall5, "___syscall51": ___syscall51, "___syscall54": ___syscall54, "___syscall57": ___syscall57, "___syscall60": ___syscall60, "___syscall63": ___syscall63, "___syscall64": ___syscall64, "___syscall66": ___syscall66, "___syscall75": ___syscall75, "___syscall77": ___syscall77, "___syscall83": ___syscall83, "___syscall85": ___syscall85, "___syscall9": ___syscall9, "___syscall91": ___syscall91, "___syscall94": ___syscall94, "___syscall96": ___syscall96, "___syscall97": ___syscall97, "___wait": ___wait, "___wasi_fd_close": ___wasi_fd_close, "___wasi_fd_fdstat_get": ___wasi_fd_fdstat_get, "___wasi_fd_read": ___wasi_fd_read, "___wasi_fd_seek": ___wasi_fd_seek, "___wasi_fd_sync": ___wasi_fd_sync, "___wasi_fd_write": ___wasi_fd_write, "__addDays": __addDays, "__arraySum": __arraySum, "__colorChannelsInGlTextureFormat": __colorChannelsInGlTextureFormat, "__computeUnpackAlignedImageSize": __computeUnpackAlignedImageSize, "__exit": __exit, "__findCanvasEventTarget": __findCanvasEventTarget, "__findEventTarget": __findEventTarget, "__getExecutableName": __getExecutableName, "__glGenObject": __glGenObject, "__heapAccessShiftForWebGLHeap": __heapAccessShiftForWebGLHeap, "__heapObjectForWebGLType": __heapObjectForWebGLType, "__inet_ntop4_raw": __inet_ntop4_raw, "__inet_ntop6_raw": __inet_ntop6_raw, "__inet_pton4_raw": __inet_pton4_raw, "__inet_pton6_raw": __inet_pton6_raw, "__isLeapYear": __isLeapYear, "__maybeCStringToJsString": __maybeCStringToJsString, "__memory_base": 1024, "__read_sockaddr": __read_sockaddr, "__table_base": 0, "__webgl_enable_ANGLE_instanced_arrays": __webgl_enable_ANGLE_instanced_arrays, "__webgl_enable_OES_vertex_array_object": __webgl_enable_OES_vertex_array_object, "__webgl_enable_WEBGL_draw_buffers": __webgl_enable_WEBGL_draw_buffers, "__webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance": __webgl_enable_WEBGL_draw_instanced_base_vertex_base_instance, "__write_sockaddr": __write_sockaddr, "_abort": _abort, "_clock_gettime": _clock_gettime, "_emscripten_asm_const_i": _emscripten_asm_const_i, "_emscripten_asm_const_int": _emscripten_asm_const_int, "_emscripten_get_heap_size": _emscripten_get_heap_size, "_emscripten_get_now": _emscripten_get_now, "_emscripten_memcpy_big": _emscripten_memcpy_big, "_emscripten_resize_heap": _emscripten_resize_heap, "_emscripten_set_canvas_element_size": _emscripten_set_canvas_element_size, "_emscripten_set_element_css_size": _emscripten_set_element_css_size, "_emscripten_webgl_create_context": _emscripten_webgl_create_context, "_emscripten_webgl_do_create_context": _emscripten_webgl_do_create_context, "_emscripten_webgl_init_context_attributes": _emscripten_webgl_init_context_attributes, "_emscripten_webgl_make_context_current": _emscripten_webgl_make_context_current, "_exit": _exit, "_fd_close": _fd_close, "_fd_fdstat_get": _fd_fdstat_get, "_fd_read": _fd_read, "_fd_seek": _fd_seek, "_fd_sync": _fd_sync, "_fd_write": _fd_write, "_fork": _fork, "_fpathconf": _fpathconf, "_getenv": _getenv, "_getnameinfo": _getnameinfo, "_glAttachShader": _glAttachShader, "_glBindAttribLocation": _glBindAttribLocation, "_glBindBuffer": _glBindBuffer, "_glBindFramebuffer": _glBindFramebuffer, "_glBindTexture": _glBindTexture, "_glBufferData": _glBufferData, "_glClear": _glClear, "_glClearColor": _glClearColor, "_glCompileShader": _glCompileShader, "_glCreateProgram": _glCreateProgram, "_glCreateShader": _glCreateShader, "_glDrawArrays": _glDrawArrays, "_glEnable": _glEnable, "_glEnableVertexAttribArray": _glEnableVertexAttribArray, "_glFramebufferTexture2D": _glFramebufferTexture2D, "_glGenBuffers": _glGenBuffers, "_glGenFramebuffers": _glGenFramebuffers, "_glGenTextures": _glGenTextures, "_glGetAttribLocation": _glGetAttribLocation, "_glGetUniformLocation": _glGetUniformLocation, "_glLinkProgram": _glLinkProgram, "_glShaderSource": _glShaderSource, "_glTexImage2D": _glTexImage2D, "_glTexParameteri": _glTexParameteri, "_glUniform2f": _glUniform2f, "_glUniform4f": _glUniform4f, "_glUniformMatrix3fv": _glUniformMatrix3fv, "_glUseProgram": _glUseProgram, "_glVertexAttribPointer": _glVertexAttribPointer, "_glViewport": _glViewport, "_gmtime_r": _gmtime_r, "_inet_addr": _inet_addr, "_llvm_cos_f64": _llvm_cos_f64, "_llvm_sin_f64": _llvm_sin_f64, "_llvm_stackrestore": _llvm_stackrestore, "_llvm_stacksave": _llvm_stacksave, "_llvm_trap": _llvm_trap, "_nanosleep": _nanosleep, "_pathconf": _pathconf, "_pthread_cleanup_pop": _pthread_cleanup_pop, "_pthread_cleanup_push": _pthread_cleanup_push, "_pthread_detach": _pthread_detach, "_pthread_join": _pthread_join, "_pthread_mutexattr_destroy": _pthread_mutexattr_destroy, "_pthread_mutexattr_init": _pthread_mutexattr_init, "_pthread_mutexattr_settype": _pthread_mutexattr_settype, "_pthread_setcancelstate": _pthread_setcancelstate, "_pthread_sigmask": _pthread_sigmask, "_setitimer": _setitimer, "_sigfillset": _sigfillset, "_strftime": _strftime, "_strftime_l": _strftime_l, "_sysconf": _sysconf, "_time": _time, "_usleep": _usleep, "_wait": _wait, "_waitpid": _waitpid, "abort": abort, "abortStackOverflow": abortStackOverflow, "getTempRet0": getTempRet0, "invoke_ii": invoke_ii, "invoke_iidiiii": invoke_iidiiii, "invoke_iii": invoke_iii, "invoke_iiii": invoke_iiii, "invoke_iiiii": invoke_iiiii, "invoke_iiiiid": invoke_iiiiid, "invoke_iiiiii": invoke_iiiiii, "invoke_iiiiiid": invoke_iiiiiid, "invoke_iiiiiii": invoke_iiiiiii, "invoke_iiiiiiii": invoke_iiiiiiii, "invoke_iiiiiiiii": invoke_iiiiiiiii, "invoke_iiiiij": invoke_iiiiij, "invoke_iiji": invoke_iiji, "invoke_ji": invoke_ji, "invoke_jiji": invoke_jiji, "invoke_v": invoke_v, "invoke_vi": invoke_vi, "invoke_vii": invoke_vii, "invoke_viii": invoke_viii, "invoke_viiii": invoke_viiii, "invoke_viiiii": invoke_viiiii, "invoke_viiiiii": invoke_viiiiii, "invoke_viijii": invoke_viijii, "memory": wasmMemory, "nullFunc_ii": nullFunc_ii, "nullFunc_iidiiii": nullFunc_iidiiii, "nullFunc_iii": nullFunc_iii, "nullFunc_iiii": nullFunc_iiii, "nullFunc_iiiii": nullFunc_iiiii, "nullFunc_iiiiid": nullFunc_iiiiid, "nullFunc_iiiiii": nullFunc_iiiiii, "nullFunc_iiiiiid": nullFunc_iiiiiid, "nullFunc_iiiiiii": nullFunc_iiiiiii, "nullFunc_iiiiiiii": nullFunc_iiiiiiii, "nullFunc_iiiiiiiii": nullFunc_iiiiiiiii, "nullFunc_iiiiij": nullFunc_iiiiij, "nullFunc_iiji": nullFunc_iiji, "nullFunc_ji": nullFunc_ji, "nullFunc_jiji": nullFunc_jiji, "nullFunc_v": nullFunc_v, "nullFunc_vi": nullFunc_vi, "nullFunc_vii": nullFunc_vii, "nullFunc_viii": nullFunc_viii, "nullFunc_viiii": nullFunc_viiii, "nullFunc_viiiii": nullFunc_viiiii, "nullFunc_viiiiii": nullFunc_viiiiii, "nullFunc_viijii": nullFunc_viijii, "setTempRet0": setTempRet0, "table": wasmTable, "tempDoublePtr": tempDoublePtr };
 // EMSCRIPTEN_START_ASM
 var asm =Module["asm"]// EMSCRIPTEN_END_ASM
 (asmGlobalArg, asmLibraryArg, buffer);
@@ -10099,6 +10229,14 @@ var __Z12clear_screenffff = Module["__Z12clear_screenffff"] = function() {
 
 /** @type {function(...*):?}
 */
+var __Z12draw_objectsj = Module["__Z12draw_objectsj"] = function() {
+  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
+  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
+  return Module["asm"]["__Z12draw_objectsj"].apply(null, arguments)
+};
+
+/** @type {function(...*):?}
+*/
 var __Z15matrix_rotationffPf = Module["__Z15matrix_rotationffPf"] = function() {
   assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
   assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
@@ -10107,10 +10245,10 @@ var __Z15matrix_rotationffPf = Module["__Z15matrix_rotationffPf"] = function() {
 
 /** @type {function(...*):?}
 */
-var __Z9setBufferj16objectBufferInfo = Module["__Z9setBufferj16objectBufferInfo"] = function() {
+var __Z22setBufferAndAttributesj16objectBufferInfo = Module["__Z22setBufferAndAttributesj16objectBufferInfo"] = function() {
   assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
   assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
-  return Module["asm"]["__Z9setBufferj16objectBufferInfo"].apply(null, arguments)
+  return Module["asm"]["__Z22setBufferAndAttributesj16objectBufferInfo"].apply(null, arguments)
 };
 
 /** @type {function(...*):?}
@@ -49697,7 +49835,7 @@ var dynCall_viijii = Module["dynCall_viijii"] = function() {
   return Module["asm"]["dynCall_viijii"].apply(null, arguments)
 };
 Module['_PI'] = 171192;
-Module['__ZNSt3__210adopt_lockE'] = 220320;
+Module['__ZNSt3__210adopt_lockE'] = 220332;
 Module['__ZNSt3__210ctype_base5alnumE'] = 187258;
 Module['__ZNSt3__210ctype_base5alphaE'] = 187248;
 Module['__ZNSt3__210ctype_base5blankE'] = 187256;
@@ -49710,67 +49848,67 @@ Module['__ZNSt3__210ctype_base5punctE'] = 187252;
 Module['__ZNSt3__210ctype_base5spaceE'] = 187238;
 Module['__ZNSt3__210ctype_base5upperE'] = 187244;
 Module['__ZNSt3__210ctype_base6xdigitE'] = 187254;
-Module['__ZNSt3__210defer_lockE'] = 220318;
-Module['__ZNSt3__210moneypunctIcLb0EE2idE'] = 219568;
-Module['__ZNSt3__210moneypunctIcLb0EE4intlE'] = 220315;
-Module['__ZNSt3__210moneypunctIcLb1EE2idE'] = 219576;
+Module['__ZNSt3__210defer_lockE'] = 220330;
+Module['__ZNSt3__210moneypunctIcLb0EE2idE'] = 219580;
+Module['__ZNSt3__210moneypunctIcLb0EE4intlE'] = 220327;
+Module['__ZNSt3__210moneypunctIcLb1EE2idE'] = 219588;
 Module['__ZNSt3__210moneypunctIcLb1EE4intlE'] = 199581;
-Module['__ZNSt3__210moneypunctIwLb0EE2idE'] = 219584;
-Module['__ZNSt3__210moneypunctIwLb0EE4intlE'] = 220316;
-Module['__ZNSt3__210moneypunctIwLb1EE2idE'] = 219592;
+Module['__ZNSt3__210moneypunctIwLb0EE2idE'] = 219596;
+Module['__ZNSt3__210moneypunctIwLb0EE4intlE'] = 220328;
+Module['__ZNSt3__210moneypunctIwLb1EE2idE'] = 219604;
 Module['__ZNSt3__210moneypunctIwLb1EE4intlE'] = 199638;
-Module['__ZNSt3__211try_to_lockE'] = 220319;
-Module['__ZNSt3__212__rs_default4__c_E'] = 215696;
+Module['__ZNSt3__211try_to_lockE'] = 220331;
+Module['__ZNSt3__212__rs_default4__c_E'] = 215708;
 Module['__ZNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE4nposE'] = 186388;
 Module['__ZNSt3__212basic_stringIwNS_11char_traitsIwEENS_9allocatorIwEEE4nposE'] = 186392;
-Module['__ZNSt3__212placeholders2_1E'] = 220303;
-Module['__ZNSt3__212placeholders2_2E'] = 220304;
-Module['__ZNSt3__212placeholders2_3E'] = 220305;
-Module['__ZNSt3__212placeholders2_4E'] = 220306;
-Module['__ZNSt3__212placeholders2_5E'] = 220307;
-Module['__ZNSt3__212placeholders2_6E'] = 220308;
-Module['__ZNSt3__212placeholders2_7E'] = 220309;
-Module['__ZNSt3__212placeholders2_8E'] = 220310;
-Module['__ZNSt3__212placeholders2_9E'] = 220311;
-Module['__ZNSt3__212placeholders3_10E'] = 220312;
-Module['__ZNSt3__213allocator_argE'] = 220317;
+Module['__ZNSt3__212placeholders2_1E'] = 220315;
+Module['__ZNSt3__212placeholders2_2E'] = 220316;
+Module['__ZNSt3__212placeholders2_3E'] = 220317;
+Module['__ZNSt3__212placeholders2_4E'] = 220318;
+Module['__ZNSt3__212placeholders2_5E'] = 220319;
+Module['__ZNSt3__212placeholders2_6E'] = 220320;
+Module['__ZNSt3__212placeholders2_7E'] = 220321;
+Module['__ZNSt3__212placeholders2_8E'] = 220322;
+Module['__ZNSt3__212placeholders2_9E'] = 220323;
+Module['__ZNSt3__212placeholders3_10E'] = 220324;
+Module['__ZNSt3__213allocator_argE'] = 220329;
 Module['__ZNSt3__214__num_get_base5__srcE'] = 163600;
-Module['__ZNSt3__219__start_std_streamsE'] = 220314;
-Module['__ZNSt3__219piecewise_constructE'] = 220322;
+Module['__ZNSt3__219__start_std_streamsE'] = 220326;
+Module['__ZNSt3__219piecewise_constructE'] = 220334;
 Module['__ZNSt3__223__libcpp_debug_functionE'] = 180732;
-Module['__ZNSt3__23cinE'] = 218296;
-Module['__ZNSt3__24__fs10filesystem16_FilesystemClock9is_steadyE'] = 220323;
+Module['__ZNSt3__23cinE'] = 218308;
+Module['__ZNSt3__24__fs10filesystem16_FilesystemClock9is_steadyE'] = 220335;
 Module['__ZNSt3__24__fs10filesystem4path19preferred_separatorE'] = 205543;
-Module['__ZNSt3__24cerrE'] = 218640;
-Module['__ZNSt3__24clogE'] = 218808;
-Module['__ZNSt3__24coutE'] = 218472;
-Module['__ZNSt3__24wcinE'] = 218384;
-Module['__ZNSt3__25ctypeIcE2idE'] = 219344;
-Module['__ZNSt3__25ctypeIwE2idE'] = 219376;
-Module['__ZNSt3__25wcerrE'] = 218724;
-Module['__ZNSt3__25wclogE'] = 218892;
-Module['__ZNSt3__25wcoutE'] = 218556;
+Module['__ZNSt3__24cerrE'] = 218652;
+Module['__ZNSt3__24clogE'] = 218820;
+Module['__ZNSt3__24coutE'] = 218484;
+Module['__ZNSt3__24wcinE'] = 218396;
+Module['__ZNSt3__25ctypeIcE2idE'] = 219356;
+Module['__ZNSt3__25ctypeIwE2idE'] = 219388;
+Module['__ZNSt3__25wcerrE'] = 218736;
+Module['__ZNSt3__25wclogE'] = 218904;
+Module['__ZNSt3__25wcoutE'] = 218568;
 Module['__ZNSt3__26chrono12steady_clock9is_steadyE'] = 196484;
-Module['__ZNSt3__26chrono12system_clock9is_steadyE'] = 220313;
-Module['__ZNSt3__26locale2id9__next_idE'] = 219356;
+Module['__ZNSt3__26chrono12system_clock9is_steadyE'] = 220325;
+Module['__ZNSt3__26locale2id9__next_idE'] = 219368;
 Module['__ZNSt3__26locale3allE'] = 184688;
-Module['__ZNSt3__26locale4noneE'] = 219648;
+Module['__ZNSt3__26locale4noneE'] = 219660;
 Module['__ZNSt3__26locale4timeE'] = 184680;
 Module['__ZNSt3__26locale5ctypeE'] = 184668;
 Module['__ZNSt3__26locale7collateE'] = 184664;
 Module['__ZNSt3__26locale7numericE'] = 184676;
 Module['__ZNSt3__26locale8messagesE'] = 184684;
 Module['__ZNSt3__26locale8monetaryE'] = 184672;
-Module['__ZNSt3__27codecvtIDic11__mbstate_tE2idE'] = 219676;
-Module['__ZNSt3__27codecvtIDsc11__mbstate_tE2idE'] = 219668;
-Module['__ZNSt3__27codecvtIcc11__mbstate_tE2idE'] = 219652;
-Module['__ZNSt3__27codecvtIwc11__mbstate_tE2idE'] = 219660;
-Module['__ZNSt3__27collateIcE2idE'] = 219328;
-Module['__ZNSt3__27collateIwE2idE'] = 219336;
-Module['__ZNSt3__27num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219368;
-Module['__ZNSt3__27num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219392;
-Module['__ZNSt3__27num_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219400;
-Module['__ZNSt3__27num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219408;
+Module['__ZNSt3__27codecvtIDic11__mbstate_tE2idE'] = 219688;
+Module['__ZNSt3__27codecvtIDsc11__mbstate_tE2idE'] = 219680;
+Module['__ZNSt3__27codecvtIcc11__mbstate_tE2idE'] = 219664;
+Module['__ZNSt3__27codecvtIwc11__mbstate_tE2idE'] = 219672;
+Module['__ZNSt3__27collateIcE2idE'] = 219340;
+Module['__ZNSt3__27collateIwE2idE'] = 219348;
+Module['__ZNSt3__27num_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219380;
+Module['__ZNSt3__27num_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219404;
+Module['__ZNSt3__27num_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219412;
+Module['__ZNSt3__27num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219420;
 Module['__ZNSt3__28ios_base10floatfieldE'] = 181468;
 Module['__ZNSt3__28ios_base10scientificE'] = 181432;
 Module['__ZNSt3__28ios_base11adjustfieldE'] = 181460;
@@ -49790,29 +49928,29 @@ Module['__ZNSt3__28ios_base6binaryE'] = 181492;
 Module['__ZNSt3__28ios_base6eofbitE'] = 181476;
 Module['__ZNSt3__28ios_base6skipwsE'] = 181448;
 Module['__ZNSt3__28ios_base7failbitE'] = 181480;
-Module['__ZNSt3__28ios_base7goodbitE'] = 218280;
+Module['__ZNSt3__28ios_base7goodbitE'] = 218292;
 Module['__ZNSt3__28ios_base7showposE'] = 181444;
 Module['__ZNSt3__28ios_base7unitbufE'] = 181452;
 Module['__ZNSt3__28ios_base8internalE'] = 181416;
 Module['__ZNSt3__28ios_base8showbaseE'] = 181436;
-Module['__ZNSt3__28ios_base9__xindex_E'] = 218284;
+Module['__ZNSt3__28ios_base9__xindex_E'] = 218296;
 Module['__ZNSt3__28ios_base9basefieldE'] = 181464;
 Module['__ZNSt3__28ios_base9boolalphaE'] = 181400;
 Module['__ZNSt3__28ios_base9showpointE'] = 181440;
 Module['__ZNSt3__28ios_base9uppercaseE'] = 181456;
-Module['__ZNSt3__28messagesIcE2idE'] = 219632;
-Module['__ZNSt3__28messagesIwE2idE'] = 219640;
-Module['__ZNSt3__28numpunctIcE2idE'] = 219360;
-Module['__ZNSt3__28numpunctIwE2idE'] = 219384;
-Module['__ZNSt3__28time_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219476;
-Module['__ZNSt3__28time_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219544;
-Module['__ZNSt3__28time_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219552;
-Module['__ZNSt3__28time_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219560;
-Module['__ZNSt3__29money_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219600;
-Module['__ZNSt3__29money_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219608;
-Module['__ZNSt3__29money_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219616;
-Module['__ZNSt3__29money_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219624;
-Module['__ZSt7nothrow'] = 220321;
+Module['__ZNSt3__28messagesIcE2idE'] = 219644;
+Module['__ZNSt3__28messagesIwE2idE'] = 219652;
+Module['__ZNSt3__28numpunctIcE2idE'] = 219372;
+Module['__ZNSt3__28numpunctIwE2idE'] = 219396;
+Module['__ZNSt3__28time_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219488;
+Module['__ZNSt3__28time_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219556;
+Module['__ZNSt3__28time_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219564;
+Module['__ZNSt3__28time_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219572;
+Module['__ZNSt3__29money_getIcNS_19istreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219612;
+Module['__ZNSt3__29money_getIwNS_19istreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219620;
+Module['__ZNSt3__29money_putIcNS_19ostreambuf_iteratorIcNS_11char_traitsIcEEEEE2idE'] = 219628;
+Module['__ZNSt3__29money_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE2idE'] = 219636;
+Module['__ZSt7nothrow'] = 220333;
 Module['__ZTCNSt3__210istrstreamE0_NS_13basic_istreamIcNS_11char_traitsIcEEEE'] = 170632;
 Module['__ZTCNSt3__210ostrstreamE0_NS_13basic_ostreamIcNS_11char_traitsIcEEEE'] = 170688;
 Module['__ZTCNSt3__214basic_ifstreamIcNS_11char_traitsIcEEEE0_NS_13basic_istreamIcS2_EE'] = 171064;
@@ -50456,45 +50594,45 @@ Module['__ZZNKSt3__27num_putIwNS_19ostreambuf_iteratorIwNS_11char_traitsIwEEEEE6
 Module['__ZZNSt3__24__fs10filesystem21__temp_directory_pathEPNS_10error_codeEE9env_paths'] = 165088;
 Module['___c_dot_utf8'] = 172036;
 Module['___c_dot_utf8_locale'] = 172064;
-Module['___c_locale'] = 214684;
-Module['___cxa_new_handler'] = 215668;
+Module['___c_locale'] = 214696;
+Module['___cxa_new_handler'] = 215680;
 Module['___cxa_terminate_handler'] = 176676;
 Module['___cxa_unexpected_handler'] = 176680;
 Module['___fsmu8'] = 1824;
-Module['___hwcap'] = 214800;
-Module['___libc'] = 214736;
-Module['___optpos'] = 214672;
-Module['___optreset'] = 214668;
-Module['___progname'] = 214728;
-Module['___progname_full'] = 214732;
+Module['___hwcap'] = 214812;
+Module['___libc'] = 214748;
+Module['___optpos'] = 214684;
+Module['___optreset'] = 214680;
+Module['___progname'] = 214740;
+Module['___progname_full'] = 214744;
 Module['___seed48'] = 187212;
-Module['___signgam'] = 214808;
+Module['___signgam'] = 214820;
 Module['___stderr_used'] = 172108;
 Module['___stdin_used'] = 172116;
 Module['___stdout_used'] = 172124;
-Module['___sysinfo'] = 214804;
+Module['___sysinfo'] = 214816;
 Module['__ns_flagdata'] = 1696;
-Module['_daylight'] = 214824;
-Module['_environ'] = 215692;
-Module['_h_errno'] = 214708;
+Module['_daylight'] = 214836;
+Module['_environ'] = 215704;
+Module['_h_errno'] = 214720;
 Module['_identity'] = 1024;
-Module['_in6addr_any'] = 214712;
+Module['_in6addr_any'] = 214724;
 Module['_in6addr_loopback'] = 172088;
 Module['_objects'] = 206336;
 Module['_objectsToDraw'] = 206624;
-Module['_optarg'] = 214676;
+Module['_optarg'] = 214688;
 Module['_opterr'] = 172032;
 Module['_optind'] = 172028;
-Module['_optopt'] = 214680;
+Module['_optopt'] = 214692;
 Module['_rectangleBufferInfo'] = 171220;
 Module['_rotation'] = 171204;
 Module['_scale'] = 171212;
 Module['_stderr'] = 172104;
 Module['_stdin'] = 172112;
 Module['_stdout'] = 172120;
-Module['_timezone'] = 214828;
+Module['_timezone'] = 214840;
 Module['_translation'] = 171196;
-Module['_tzname'] = 214816;;
+Module['_tzname'] = 214828;;
 
 
 /**

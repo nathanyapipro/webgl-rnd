@@ -11,10 +11,13 @@
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext;
 static int canvasHeight;
 static int canvasWidth;
+static GLuint renderBuffer;
+static GLuint frameBuffer;
 static GLuint objectProgram;
 static GLuint objectVertexShader;
 static GLuint objectFragmentShader;
 static GLuint pickingProgram;
+static GLuint pickingTexture;
 static GLuint pickingVertexShader;
 static GLuint pickingFragmentShader;
 static GLint positionLocation;
@@ -102,8 +105,18 @@ void clear_screen(float r, float g, float b, float a)
   glClear(GL_COLOR_BUFFER_BIT);
 }
 
-void setBuffer(GLuint program, objectBufferInfo objectBuffer)
+void setBufferAndAttributes(GLuint program, objectBufferInfo objectBuffer)
 {
+  // Load the vertex data
+  glEnableVertexAttribArray(positionLocation);
+
+  // Bind the position buffer.
+  glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+
+  glVertexAttribPointer(
+      positionLocation, 2, GL_FLOAT, false, 0, 0);
+
+  glUniform2f(resolutionLocation, canvasWidth, canvasHeight);
   glBufferData(
       GL_ARRAY_BUFFER,
       objectBuffer.numElements,
@@ -228,6 +241,25 @@ void webgl_init(int width, int height)
   glGenBuffers(1, &positionBuffer);
   glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 
+  glGenTextures(1, &pickingTexture);
+  glBindTexture(GL_TEXTURE_2D, pickingTexture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,
+               canvasWidth, canvasHeight, 0,
+               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+  // set the filtering so we don't need mips
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // Create and bind the framebuffer
+  glGenFramebuffers(1, &frameBuffer);
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+
+  // attach the texture as the first color attachment
+  glFramebufferTexture2D(
+      GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pickingTexture, 0);
+
   for (int i = 0; i < 3; i++)
   {
     int id = i + 1;
@@ -256,35 +288,46 @@ void webgl_init(int width, int height)
   draw_scene();
 }
 
-void draw_scene()
+void draw_objects(GLuint overrideProgram = NULL)
 {
-  printf("DRAW SCENE\n");
-  glViewport(0, 0, canvasWidth, canvasHeight);
-
-  // Clear the color buffer
-  glClearColor(0, 0, 0, 0);
-  glClear(GL_COLOR_BUFFER_BIT);
-
-  // Use the program object
-  glUseProgram(objectProgram);
-
-  // Load the vertex data
-  glEnableVertexAttribArray(positionLocation);
-
-  // Bind the position buffer.
-  glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
-
-  glVertexAttribPointer(
-      positionLocation, 2, GL_FLOAT, false, 0, 0);
-
-  glUniform2f(resolutionLocation, canvasWidth, canvasHeight);
 
   for (int i = 0; i < 3; i++)
   {
-    setBuffer(objectProgram, objectsToDraw[i].bufferInfo);
-    setUniforms(objectProgram, *(objectsToDraw[i].uniforms));
+    GLuint program = objectsToDraw[i].programInfo;
+    if (overrideProgram)
+    {
+      program = overrideProgram;
+    }
+    glUseProgram(program);
+    setBufferAndAttributes(program, objectsToDraw[i].bufferInfo);
+    setUniforms(program, *(objectsToDraw[i].uniforms));
     glDrawArrays(GL_TRIANGLES, 0, 6);
   };
+}
+
+void draw_scene()
+{
+  printf("DRAW SCENE\n");
+
+  // ------ Draw the objects to the texture --------
+
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+  glViewport(0, 0, canvasWidth, canvasHeight);
+
+  glEnable(GL_CULL_FACE);
+  glEnable(GL_DEPTH_TEST);
+
+  // Clear the canvas AND the depth buffer.
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  draw_objects(pickingProgram);
+
+  // ------ Draw the objects to the canvas
+
+  glBindFramebuffer(GL_FRAMEBUFFER, NULL);
+  glViewport(0, 0, canvasWidth, canvasHeight);
+
+  draw_objects();
 }
 
 void update_translation(int x, int y)
