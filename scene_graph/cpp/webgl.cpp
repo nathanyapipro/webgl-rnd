@@ -165,10 +165,6 @@ void draw_scene()
 
   // Multiply the matrices.
   matrix_multiply(trans_matrix, rot_matrix, partial_matrix);
-  // printf("Partial Matrix\n %f %f %f\n %f %f %f\n %f %f %f\n",
-  //        partial_matrix[0][0], partial_matrix[1][0], partial_matrix[2][0],
-  //        partial_matrix[0][1], partial_matrix[1][1], partial_matrix[2][1],
-  //        partial_matrix[0][2], partial_matrix[0][2], partial_matrix[2][2]);
   matrix_multiply(partial_matrix, scale_matrix, matrix);
 
   glUniformMatrix3fv(matrixLocation, 1, false, matrix);
