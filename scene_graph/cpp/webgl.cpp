@@ -267,15 +267,18 @@ void webgl_init(int width, int height)
   for (int i = 0; i < 3; i++)
   {
     int id = i + 1;
+    int r = (i & 0x000000FF) >> 0;
+    int g = (i & 0x0000FF00) >> 8;
+    int b = (i & 0x00FF0000) >> 16;
     objects[i] = {
         .uniforms = {
             .u_color = {static_cast<GLfloat>(rand() % 255 / 255.0), static_cast<GLfloat>(rand() % 255 / 255.0), static_cast<GLfloat>(rand() % 255 / 255.0), 1},
             .u_matrix = {1, 0, 0, 0, 1, 0, 0, 0, 1},
             .u_id = {
-                static_cast<GLfloat>(((id >> 0) & 0xFF) / 0xFF),
-                static_cast<GLfloat>(((id >> 8) & 0xFF) / 0xFF),
-                static_cast<GLfloat>(((id >> 16) & 0xFF) / 0xFF),
-                static_cast<GLfloat>(((id >> 24) & 0xFF) / 0xFF),
+                r / 255.0f,
+                g / 255.0f,
+                b / 255.0f,
+                1.0f,
             },
             .translation = {static_cast<GLfloat>(rand() % 400), static_cast<GLfloat>(rand() % 400)},
             .rotation = {0, 1},
@@ -326,11 +329,16 @@ void draw_scene()
 
   draw_objects(pickingProgram);
 
+  glFlush();
+  glFinish();
+
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
   // ------ Figure out what pixel is under the mouse and read it
 
   GLfloat pixelX = mouse[0];
-  GLfloat pixelY = mouse[1];
-  GLuint data[4];
+  GLfloat pixelY = canvasHeight - mouse[1] - 1;
+  unsigned char data[4];
   glReadPixels(
       pixelX,           // x
       pixelY,           // y
@@ -339,8 +347,8 @@ void draw_scene()
       GL_RGBA,          // format
       GL_UNSIGNED_BYTE, // type
       data);            // typed array to hold result
-  int id = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
-  printf("%u %u %u %u\n", data[0], data[1], data[2], data[3]);
+  int id = data[0] + (data[1] * 256) + (data[2] * 256 * 256) - 1;
+  printf("%d, %i %i %i %i\n", id, data[0], data[1], data[2], data[3]);
   // restore the object's color
   if (oldPickNdx >= 0)
   {
