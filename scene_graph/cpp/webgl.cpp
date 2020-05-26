@@ -11,19 +11,73 @@
 static EMSCRIPTEN_WEBGL_CONTEXT_HANDLE glContext;
 static int canvasHeight;
 static int canvasWidth;
-static GLuint programObject;
-static GLuint vertexShader;
-static GLuint fragmentShader;
+static GLuint objectProgram;
+static GLuint objectVertexShader;
+static GLuint objectFragmentShader;
+static GLuint pickingProgram;
+static GLuint pickingVertexShader;
+static GLuint pickingFragmentShader;
 static GLint positionLocation;
 static GLint resolutionLocation;
 static GLint colorLocation;
 static GLint matrixLocation;
+static GLint idLocation;
 static GLuint positionBuffer;
 GLfloat translation[2] = {200, 200};
 GLfloat rotation[2] = {0, 1};
 GLfloat scale[2] = {100, 100};
 
-static GLuint compile_shader(GLenum shaderType, const char *src)
+struct objectUniforms
+{
+  GLfloat u_color[4];
+  GLfloat u_matrix[9];
+  GLfloat u_id[4];
+  GLfloat translation[2];
+  GLfloat rotation[2];
+  GLfloat scale[2];
+};
+struct object
+{
+  objectUniforms uniforms;
+};
+
+struct objectBufferInfo
+{
+  GLsizei numElements;
+  GLfloat vertices[200];
+  GLenum usage;
+};
+
+objectBufferInfo rectangleBufferInfo = {
+    .numElements = 12 * 4,
+    .vertices =
+        {1,
+         0,
+         0,
+         0,
+         1,
+         1,
+         1,
+         1,
+         0,
+         0,
+         0,
+         1},
+    .usage = GL_STATIC_DRAW,
+};
+
+struct objectToDraw
+{
+  GLuint programInfo;
+  objectBufferInfo bufferInfo;
+  objectUniforms *uniforms;
+};
+
+object objects[1];
+objectToDraw objectsToDraw[1];
+
+static GLuint
+compile_shader(GLenum shaderType, const char *src)
 {
   GLuint shader = glCreateShader(shaderType);
   glShaderSource(shader, 1, &src, NULL);
@@ -46,6 +100,36 @@ void clear_screen(float r, float g, float b, float a)
 {
   glClearColor(r, g, b, a);
   glClear(GL_COLOR_BUFFER_BIT);
+}
+
+void setBuffer(GLuint program, objectBufferInfo objectBuffer)
+{
+  glBufferData(
+      GL_ARRAY_BUFFER,
+      objectBuffer.numElements,
+      objectBuffer.vertices,
+      objectBuffer.usage);
+}
+
+void setUniforms(GLuint program, objectUniforms uniforms)
+{
+  glUniform4f(colorLocation, 1.0, 0.0, 0.0, 1);
+
+  // Set translation
+  float partial_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float trans_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float rot_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  float scale_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  matrix_translation(uniforms.translation[0], uniforms.translation[1], trans_matrix);
+  matrix_rotation(uniforms.rotation[0], uniforms.rotation[1], rot_matrix);
+  matrix_scaling(uniforms.scale[0], uniforms.scale[1], scale_matrix);
+
+  // Multiply the matrices.
+  matrix_multiply(trans_matrix, rot_matrix, matrix);
+  matrix_multiply(matrix, scale_matrix, matrix);
+
+  glUniformMatrix3fv(matrixLocation, 1, false, matrix);
 }
 
 //Shaders
@@ -78,6 +162,24 @@ static const char fragment_shader_2d[] =
     " gl_FragColor = u_color;"
     "}";
 
+static const char pick_vertex_shader[] =
+    "attribute vec4 a_position;"
+
+    "uniform mat4 u_matrix;"
+
+    "void main() {"
+    // Multiply the position by the matrix.
+    "gl_Position = u_matrix * a_position;"
+    "}";
+
+static const char pick_fragment_shader[] =
+    "precision mediump float;"
+    "uniform vec4 u_id;"
+    "void main()"
+    "{"
+    "gl_FragColor = u_id;"
+    "}";
+
 void webgl_init(int width, int height)
 {
   printf("WEB_GL_INIT\n");
@@ -105,21 +207,51 @@ void webgl_init(int width, int height)
 
   emscripten_webgl_make_context_current(glContext);
 
-  // Compile shaders
-  vertexShader = compile_shader(GL_VERTEX_SHADER, vertex_shader_2d);
-  fragmentShader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_2d);
+  //Object Program
+  objectVertexShader = compile_shader(GL_VERTEX_SHADER, vertex_shader_2d);
+  objectFragmentShader = compile_shader(GL_FRAGMENT_SHADER, fragment_shader_2d);
+  objectProgram = create_program(objectVertexShader, objectFragmentShader);
 
-  // Build program
-  programObject = create_program(vertexShader, fragmentShader);
+  // Picking Program
+  pickingVertexShader = compile_shader(GL_VERTEX_SHADER, pick_vertex_shader);
+  pickingFragmentShader = compile_shader(GL_FRAGMENT_SHADER, pick_fragment_shader);
+  pickingProgram = create_program(pickingVertexShader, pickingFragmentShader);
 
-  positionLocation = glGetAttribLocation(programObject, "a_position");
-  resolutionLocation = glGetUniformLocation(programObject, "u_resolution");
-  colorLocation = glGetUniformLocation(programObject, "u_color");
+  positionLocation = glGetAttribLocation(objectProgram, "a_position");
+  resolutionLocation = glGetUniformLocation(objectProgram, "u_resolution");
+  colorLocation = glGetUniformLocation(objectProgram, "u_color");
   matrixLocation = glGetUniformLocation(
-      programObject, "u_matrix");
+      objectProgram, "u_matrix");
+  idLocation = glGetUniformLocation(
+      objectProgram, "u_id");
 
   glGenBuffers(1, &positionBuffer);
   glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+
+  for (int i = 0; i < 1; i++)
+  {
+    int id = i + 1;
+    objects[i] = {
+        .uniforms = {
+            .u_color = {1, 0, 0, 1},
+            .u_matrix = {1, 0, 0, 0, 1, 0, 0, 0, 1},
+            .u_id = {
+                static_cast<GLfloat>(((id >> 0) & 255) / 255),
+                static_cast<GLfloat>(((id >> 8) & 255) / 255),
+                static_cast<GLfloat>(((id >> 16) & 255) / 255),
+                static_cast<GLfloat>(((id >> 24) & 255) / 255),
+            },
+            .translation = {200, 200},
+            .rotation = {0, 1},
+            .scale = {100, 100},
+        },
+    };
+    objectsToDraw[i] = {
+        .programInfo = objectProgram,
+        .bufferInfo = rectangleBufferInfo,
+        .uniforms = &objects[i].uniforms,
+    };
+  }
 
   draw_scene();
 }
@@ -134,7 +266,7 @@ void draw_scene()
   glClear(GL_COLOR_BUFFER_BIT);
 
   // Use the program object
-  glUseProgram(programObject);
+  glUseProgram(objectProgram);
 
   // Load the vertex data
   glEnableVertexAttribArray(positionLocation);
@@ -147,50 +279,56 @@ void draw_scene()
 
   glUniform2f(resolutionLocation, canvasWidth, canvasHeight);
 
+  for (int i = 0; i < 1; i++)
+  {
+    setBuffer(objectProgram, objectsToDraw[i].bufferInfo);
+    setUniforms(objectProgram, *(objectsToDraw[i].uniforms));
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+  };
   // Setup a rectangle
-  set_rectangle();
+  // set_rectangle();
 
-  // Set a random color.
-  glUniform4f(colorLocation, 1.0, 0.0, 0.0, 1);
+  // // Set a random color.
+  // glUniform4f(colorLocation, 1.0, 0.0, 0.0, 1);
 
-  // Set translation
-  float partial_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  float matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  float trans_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  float rot_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  float scale_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  matrix_translation(translation[0], translation[1], trans_matrix);
-  matrix_rotation(rotation[0], rotation[1], rot_matrix);
-  matrix_scaling(scale[0], scale[1], scale_matrix);
+  // // Set translation
+  // float partial_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  // float matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  // float trans_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  // float rot_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  // float scale_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+  // matrix_translation(translation[0], translation[1], trans_matrix);
+  // matrix_rotation(rotation[0], rotation[1], rot_matrix);
+  // matrix_scaling(scale[0], scale[1], scale_matrix);
 
-  // Multiply the matrices.
-  matrix_multiply(trans_matrix, rot_matrix, partial_matrix);
-  matrix_multiply(partial_matrix, scale_matrix, matrix);
+  // // Multiply the matrices.
+  // matrix_multiply(trans_matrix, rot_matrix, matrix);
+  // matrix_multiply(matrix, scale_matrix, matrix);
 
-  glUniformMatrix3fv(matrixLocation, 1, false, matrix);
+  // glUniformMatrix3fv(matrixLocation, 1, false, matrix);
 
   // Draw the rectangle.
-  glDrawArrays(GL_TRIANGLES, 0, 6);
+  // glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void update_translation(int x, int y)
 {
-  translation[0] = x;
-  translation[1] = y;
+  objects[0].uniforms.translation[0] = x;
+  objects[0].uniforms.translation[1] = y;
   draw_scene();
 }
 
 void update_rotation(int angle)
 {
-  rotation[0] = sin(angle * PI / 180.0);
-  rotation[1] = cos(angle * PI / 180.0);
+  objects[0].uniforms.rotation[0] = sin(angle * PI / 180.0);
+  objects[0].uniforms.rotation[1] = cos(angle * PI / 180.0);
   draw_scene();
 }
 
 void update_scale(int x, int y)
 {
-  scale[0] = x;
-  scale[1] = y;
+  objects[0].uniforms.scale[0] = x;
+  objects[0].uniforms.scale[1] = y;
   draw_scene();
 }
 

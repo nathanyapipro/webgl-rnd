@@ -9,6 +9,7 @@ extern "C"
   void matrix_multiply(float mat1[9],
                        float mat2[9],
                        float res[9]);
+  void matrix_identity(float res[9]);
   void matrix_translation(float tx, float ty, float res[9]);
   void matrix_scaling(float sx, float sy, float res[9]);
   void matrix_rotation(float angleDeg, float res[9]);

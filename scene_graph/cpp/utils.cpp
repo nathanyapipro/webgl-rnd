@@ -48,6 +48,19 @@ void matrix_multiply(float mat1[9],
   res[9] = b20 * a02 + b21 * a12 + b22 * a22;
 }
 
+void matrix_identity(float res[9])
+{
+  res[0] = 1;
+  res[1] = 0;
+  res[2] = 0;
+  res[3] = 0;
+  res[4] = 1;
+  res[5] = 0;
+  res[6] = 0;
+  res[7] = 0;
+  res[8] = 1;
+}
+
 void matrix_translation(float tx, float ty, float res[9])
 {
   res[0] = 1;
