@@ -73,8 +73,8 @@ struct objectToDraw
   objectUniforms *uniforms;
 };
 
-object objects[1];
-objectToDraw objectsToDraw[1];
+object objects[3];
+objectToDraw objectsToDraw[3];
 
 static GLuint
 compile_shader(GLenum shaderType, const char *src)
@@ -113,7 +113,7 @@ void setBuffer(GLuint program, objectBufferInfo objectBuffer)
 
 void setUniforms(GLuint program, objectUniforms uniforms)
 {
-  glUniform4f(colorLocation, 1.0, 0.0, 0.0, 1);
+  glUniform4f(colorLocation, uniforms.u_color[0], uniforms.u_color[1], uniforms.u_color[2], uniforms.u_color[3]);
 
   // Set translation
   float partial_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
@@ -228,12 +228,12 @@ void webgl_init(int width, int height)
   glGenBuffers(1, &positionBuffer);
   glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 
-  for (int i = 0; i < 1; i++)
+  for (int i = 0; i < 3; i++)
   {
     int id = i + 1;
     objects[i] = {
         .uniforms = {
-            .u_color = {1, 0, 0, 1},
+            .u_color = {static_cast<GLfloat>(rand() % 255 / 255.0), static_cast<GLfloat>(rand() % 255 / 255.0), static_cast<GLfloat>(rand() % 255 / 255.0), 1},
             .u_matrix = {1, 0, 0, 0, 1, 0, 0, 0, 1},
             .u_id = {
                 static_cast<GLfloat>(((id >> 0) & 255) / 255),
@@ -241,9 +241,9 @@ void webgl_init(int width, int height)
                 static_cast<GLfloat>(((id >> 16) & 255) / 255),
                 static_cast<GLfloat>(((id >> 24) & 255) / 255),
             },
-            .translation = {200, 200},
+            .translation = {static_cast<GLfloat>(rand() % 400), static_cast<GLfloat>(rand() % 400)},
             .rotation = {0, 1},
-            .scale = {100, 100},
+            .scale = {static_cast<GLfloat>(rand() % 300), static_cast<GLfloat>(rand() % 300)},
         },
     };
     objectsToDraw[i] = {
@@ -279,36 +279,12 @@ void draw_scene()
 
   glUniform2f(resolutionLocation, canvasWidth, canvasHeight);
 
-  for (int i = 0; i < 1; i++)
+  for (int i = 0; i < 3; i++)
   {
     setBuffer(objectProgram, objectsToDraw[i].bufferInfo);
     setUniforms(objectProgram, *(objectsToDraw[i].uniforms));
     glDrawArrays(GL_TRIANGLES, 0, 6);
   };
-  // Setup a rectangle
-  // set_rectangle();
-
-  // // Set a random color.
-  // glUniform4f(colorLocation, 1.0, 0.0, 0.0, 1);
-
-  // // Set translation
-  // float partial_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  // float matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  // float trans_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  // float rot_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  // float scale_matrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-  // matrix_translation(translation[0], translation[1], trans_matrix);
-  // matrix_rotation(rotation[0], rotation[1], rot_matrix);
-  // matrix_scaling(scale[0], scale[1], scale_matrix);
-
-  // // Multiply the matrices.
-  // matrix_multiply(trans_matrix, rot_matrix, matrix);
-  // matrix_multiply(matrix, scale_matrix, matrix);
-
-  // glUniformMatrix3fv(matrixLocation, 1, false, matrix);
-
-  // Draw the rectangle.
-  // glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 void update_translation(int x, int y)
