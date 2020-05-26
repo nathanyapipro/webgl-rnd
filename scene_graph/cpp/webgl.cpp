@@ -272,10 +272,10 @@ void webgl_init(int width, int height)
             .u_color = {static_cast<GLfloat>(rand() % 255 / 255.0), static_cast<GLfloat>(rand() % 255 / 255.0), static_cast<GLfloat>(rand() % 255 / 255.0), 1},
             .u_matrix = {1, 0, 0, 0, 1, 0, 0, 0, 1},
             .u_id = {
-                static_cast<GLfloat>(((id >> 0) & 255) / 255.0),
-                static_cast<GLfloat>(((id >> 8) & 255) / 255.0),
-                static_cast<GLfloat>(((id >> 16) & 255) / 255.0),
-                static_cast<GLfloat>(((id >> 24) & 255) / 255.0),
+                static_cast<GLfloat>(((id >> 0) & 0xFF) / 0xFF),
+                static_cast<GLfloat>(((id >> 8) & 0xFF) / 0xFF),
+                static_cast<GLfloat>(((id >> 16) & 0xFF) / 0xFF),
+                static_cast<GLfloat>(((id >> 24) & 0xFF) / 0xFF),
             },
             .translation = {static_cast<GLfloat>(rand() % 400), static_cast<GLfloat>(rand() % 400)},
             .rotation = {0, 1},
@@ -330,7 +330,7 @@ void draw_scene()
 
   GLfloat pixelX = mouse[0];
   GLfloat pixelY = mouse[1];
-  GLfloat data[4];
+  GLuint data[4];
   glReadPixels(
       pixelX,           // x
       pixelY,           // y
@@ -339,8 +339,8 @@ void draw_scene()
       GL_RGBA,          // format
       GL_UNSIGNED_BYTE, // type
       data);            // typed array to hold result
-  int id = (static_cast<GLint>(data[0])) + (static_cast<GLint>(data[1]) << 8) + (static_cast<GLint>(data[2]) << 16) + (static_cast<GLint>(data[3]) << 24);
-  printf("%f %f %f %f\n", data[0], data[1], data[2], data[3]);
+  int id = data[0] + (data[1] << 8) + (data[2] << 16) + (data[3] << 24);
+  printf("%u %u %u %u\n", data[0], data[1], data[2], data[3]);
   // restore the object's color
   if (oldPickNdx >= 0)
   {
