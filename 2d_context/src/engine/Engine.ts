@@ -1,4 +1,5 @@
 export interface Box {
+  colorKey: string;
   x: number;
   y: number;
   w: number;
@@ -28,82 +29,129 @@ export interface Node extends Position {
 }
 
 export class Engine {
-  drawingCanvas: HTMLCanvasElement;
+  drawingCtx: CanvasRenderingContext2D;
+  hitCtx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
   boxes: Box[];
   connectors: Connectors[];
   tileSize: number;
   worldSize: number;
   world: number[][];
+  colorHash: {
+    [key: string]: number;
+  };
   // scale: Scale;
 
   constructor(drawingCanvas: HTMLCanvasElement) {
-    this.drawingCanvas = drawingCanvas;
+    this.drawingCtx = drawingCanvas.getContext(
+      "2d"
+    ) as CanvasRenderingContext2D;
 
+    this.height = drawingCanvas.height;
+    this.width = drawingCanvas.width;
+    const hitCanvas = document.createElement("canvas");
+    this.hitCtx = hitCanvas.getContext("2d") as CanvasRenderingContext2D;
+    hitCanvas.height = this.height;
+    hitCanvas.width = this.width;
     this.tileSize = 25;
+    this.colorHash = {};
     this.worldSize = 600 / this.tileSize;
     this.boxes = [
       {
+        colorKey: this.getRandomColor(),
         x: 75,
         y: 75,
         w: 75,
         h: 75,
       },
       {
-        x: 475,
-        y: 475,
+        colorKey: this.getRandomColor(),
+        x: 525,
+        y: 525,
         w: 75,
         h: 75,
       },
       {
-        x: 300,
-        y: 70,
+        colorKey: this.getRandomColor(),
+        x: 525,
+        y: 75,
         w: 75,
         h: 75,
       },
       {
-        x: 300,
-        y: 475,
+        colorKey: this.getRandomColor(),
+        x: 75,
+        y: 525,
         w: 75,
         h: 75,
       },
       {
-        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
-        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        colorKey: this.getRandomColor(),
+        x: Math.floor(Math.random() * 3 + 3) * this.tileSize,
+        y: Math.floor(Math.random() * 10 + 8) * this.tileSize,
         w: 75,
         h: 75,
       },
       {
-        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
-        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        colorKey: this.getRandomColor(),
+        x: Math.floor(Math.random() * 3 + 8) * this.tileSize,
+        y: Math.floor(Math.random() * 10 + 8) * this.tileSize,
         w: 75,
         h: 75,
       },
       {
-        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
-        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        colorKey: this.getRandomColor(),
+        x: Math.floor(Math.random() * 3 + 13) * this.tileSize,
+        y: Math.floor(Math.random() * 10 + 8) * this.tileSize,
         w: 75,
         h: 75,
       },
       {
-        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
-        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        colorKey: this.getRandomColor(),
+        x: Math.floor(Math.random() * 3 + 18) * this.tileSize,
+        y: Math.floor(Math.random() * 10 + 8) * this.tileSize,
         w: 75,
         h: 75,
       },
     ];
+    this.boxes.forEach(({ colorKey }, index) => {
+      this.colorHash[colorKey] = index;
+    });
     this.world = this.initWorld();
     this.connectors = [
       { source: 0, target: 1 },
       { source: 2, target: 3 },
     ];
-    this.drawingCanvas.width = this.drawingCanvas.clientWidth;
-    this.drawingCanvas.height = this.drawingCanvas.clientHeight;
+
+    drawingCanvas.addEventListener("click", (e) => {
+      const mousePos = {
+        x: e.clientX - drawingCanvas.offsetLeft,
+        y: e.clientY - drawingCanvas.offsetTop,
+      };
+      let index = -1;
+      const pixel = this.hitCtx.getImageData(mousePos.x, mousePos.y, 1, 1).data;
+      const color = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
+      index = this.colorHash[color];
+      if (index >= 0) {
+        alert("click on circle: " + index);
+      }
+    });
+    // this.drawingCanvas.width = this.drawingCanvas.clientWidth;
+    // this.drawingCanvas.height = this.drawingCanvas.clientHeight;
     // this.scale = {
     //   x: 1,
     //   y: 1,
     // };
 
     // this.drawingCanvas.addEventListener("resize", this.resized);
+  }
+
+  getRandomColor() {
+    const r = Math.round(Math.random() * 255);
+    const g = Math.round(Math.random() * 255);
+    const b = Math.round(Math.random() * 255);
+    return `rgb(${r},${g},${b})`;
   }
 
   initWorld() {
@@ -294,23 +342,17 @@ export class Engine {
   //   this.draw();
   // }
 
+  clear() {
+    // drawingCtx.scale(this.scale.x, this.scale.y);
+    this.drawingCtx.clearRect(0, 0, this.width, this.height);
+    this.hitCtx.clearRect(0, 0, this.width, this.height);
+  }
+
   draw() {
     console.log("draw");
-    const drawingCtx = this.drawingCanvas.getContext("2d");
-
-    if (drawingCtx === null) {
-      return;
-    }
-    // drawingCtx.scale(this.scale.x, this.scale.y);
-    drawingCtx.clearRect(
-      0,
-      0,
-      this.drawingCanvas.clientWidth,
-      this.drawingCanvas.clientHeight
-    );
+    this.clear();
     this.boxes.forEach((box) => {
-      drawingCtx.fillRect(box.x - box.w / 2, box.y - box.h / 2, box.w, box.h);
-      this.addBoxToWorld(box);
+      this.drawBox(box);
     });
 
     this.connectors.forEach((connector) => {
@@ -335,20 +377,36 @@ export class Engine {
     });
   }
 
-  drawPath(path: Position[]) {
-    const drawingCtx = this.drawingCanvas.getContext("2d");
+  drawBox(box: Box) {
+    this.drawingCtx.fillRect(
+      box.x - box.w / 2,
+      box.y - box.h / 2,
+      box.w,
+      box.h
+    );
 
-    if (drawingCtx === null) {
-      return;
-    }
-    drawingCtx.beginPath();
+    this.hitCtx.fillStyle = box.colorKey;
+
+    this.hitCtx.fillRect(box.x - box.w / 2, box.y - box.h / 2, box.w, box.h);
+
+    this.addBoxToWorld(box);
+  }
+
+  drawPath(path: Position[]) {
+    this.drawingCtx.beginPath();
     for (let i = 0; i < path.length - 1; i++) {
       const source = path[i];
       const target = path[i + 1];
-      drawingCtx.moveTo(source.x * this.tileSize, source.y * this.tileSize);
-      drawingCtx.lineTo(target.x * this.tileSize, target.y * this.tileSize);
+      this.drawingCtx.moveTo(
+        source.x * this.tileSize,
+        source.y * this.tileSize
+      );
+      this.drawingCtx.lineTo(
+        target.x * this.tileSize,
+        target.y * this.tileSize
+      );
     }
 
-    drawingCtx.stroke();
+    this.drawingCtx.stroke();
   }
 }
