@@ -43,25 +43,21 @@ export class Engine {
     this.worldSize = 600 / this.tileSize;
     this.boxes = [
       { x: 25, y: 25, w: 25, h: 25 },
-      { x: 475, y: 475, w: 25, h: 25 },
-      { x: 300, y: 300, w: 100, h: 100 },
-      { x: 450, y: 50, w: 100, h: 100 },
-      { x: 150, y: 350, w: 100, h: 100 },
-      {
-        x: Math.floor(Math.random() * (this.worldSize - 1)) * this.tileSize,
-        y: Math.floor(Math.random() * (this.worldSize - 1)) * this.tileSize,
-        w: 100,
-        h: 100,
-      },
-      {
-        x: Math.floor(Math.random() * (this.worldSize - 1)) * this.tileSize,
-        y: Math.floor(Math.random() * (this.worldSize - 1)) * this.tileSize,
-        w: 100,
-        h: 100,
-      },
+      { x: 25, y: 225, w: 25, h: 25 },
+      { x: 25, y: 325, w: 25, h: 25 },
+      { x: 25, y: 525, w: 25, h: 25 },
+      { x: 525, y: 25, w: 25, h: 25 },
+      { x: 525, y: 225, w: 25, h: 25 },
+      { x: 525, y: 425, w: 25, h: 25 },
+      { x: 525, y: 525, w: 25, h: 25 },
     ];
     this.world = this.initWorld();
-    this.connectors = [{ source: 0, target: 1 }];
+    this.connectors = [
+      { source: 0, target: 7 },
+      { source: 1, target: 4 },
+      { source: 2, target: 5 },
+      { source: 3, target: 6 },
+    ];
     this.drawingCanvas.width = this.drawingCanvas.clientWidth;
     this.drawingCanvas.height = this.drawingCanvas.clientHeight;
     // this.scale = {
@@ -88,26 +84,38 @@ export class Engine {
     const height = Math.floor(box.h / this.tileSize);
     const x1 = Math.max(0, Math.floor(box.x / this.tileSize));
     const y1 = Math.max(0, Math.floor(box.y / this.tileSize));
-    const x2 = Math.min(x1 + width, this.tileSize);
-    const y2 = Math.min(y1 + height, this.tileSize);
+    const x2 = Math.min(x1 + width, this.worldSize);
+    const y2 = Math.min(y1 + height, this.worldSize);
 
     for (let i = x1; i < x2; i++) {
       for (let j = y1; j < y2; j++) {
-        this.world[i][j] = 1;
+        this.world[i][j] = 5;
       }
     }
   }
 
-  manhattanDistance(node: Position, goal: Position) {
+  addConnectorToWorld(path: Position[]) {
+    path.forEach(({ x, y }) => {
+      this.world[x][y] += 1.5;
+    });
+  }
+
+  distance(node: Position, goal: Position) {
     // linear movement - no diagonals - just cardinal directions (NSEW)
-    return Math.abs(node.x - goal.x) + Math.abs(node.y - goal.y);
+    return (
+      Math.abs(node.x - goal.x) +
+      Math.abs(node.y - goal.y) +
+      this.world[node.x][node.y]
+    );
+    // return Math.max(Math.abs(node.x - goal.x), Math.abs(node.y - goal.y) );
+    // return Math.sqrt(
+    //   Math.pow(node.x - goal.x, 2) + Math.pow(node.y - goal.y, 2)
+    // );
   }
 
   canWalkHere(x: number, y: number) {
     return (
-      this.world[x] != null &&
-      this.world[x][y] != null &&
-      this.world[x][y] === 0
+      this.world[x] != null && this.world[x][y] != null && this.world[x][y] < 5
     );
   }
 
@@ -198,11 +206,9 @@ export class Engine {
           myPath = this.createNode(myNode, myNeighbours[i]);
           if (!aStar[myPath.value]) {
             // estimated cost of this particular route so far
-            myPath.g =
-              myNode.g + this.manhattanDistance(myNeighbours[i], myNode);
+            myPath.g = myNode.g + this.distance(myNeighbours[i], myNode);
             // estimated cost of entire guessed route to the destination
-            myPath.f =
-              myPath.g + this.manhattanDistance(myNeighbours[i], endNode);
+            myPath.f = myPath.g + this.distance(myNeighbours[i], endNode);
             // remember this new path for testing above
             openNodes.push(myPath);
             // mark this node in the world graph as visited
@@ -259,20 +265,16 @@ export class Engine {
       var box2 = this.boxes[connector.target];
       const path = this.getPath(
         {
-          x: Math.floor(box1.x / this.worldSize + 1),
+          x: Math.floor(box1.x / this.worldSize + 0),
           y: Math.floor(box1.y / this.worldSize + 1),
         },
         {
-          x: Math.floor(box2.x / this.worldSize + 1),
-          y: Math.floor(box2.y / this.worldSize),
+          x: Math.floor(box2.x / this.worldSize - 0),
+          y: Math.floor(box2.y / this.worldSize + 1),
         }
       );
       this.drawPath(path);
-      // console.log(path);
-      // drawingCtx.beginPath();
-      // drawingCtx.moveTo(box1.x + box1.w / 2, box1.y + box1.h / 2);
-      // drawingCtx.lineTo(box2.x + box2.w / 2, box2.y + box2.h / 2);
-      // drawingCtx.stroke();
+      this.addConnectorToWorld(path);
     });
   }
 
