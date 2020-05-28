@@ -57,7 +57,7 @@ function App() {
 
   useEffect(() => {
     if (engine) {
-      engine.draw();
+      engine.drawScene();
     }
   }, [engine]);
 

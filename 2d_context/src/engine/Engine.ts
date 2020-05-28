@@ -33,11 +33,14 @@ export class Engine {
   hitCtx: CanvasRenderingContext2D;
   width: number;
   height: number;
+  mousePosition: Position;
   boxes: Box[];
+  selectedId?: number;
   connectors: Connectors[];
   tileSize: number;
   worldSize: number;
   world: number[][];
+  isDragging: boolean;
   colorHash: {
     [key: string]: number;
   };
@@ -47,13 +50,15 @@ export class Engine {
     this.drawingCtx = drawingCanvas.getContext(
       "2d"
     ) as CanvasRenderingContext2D;
-
+    this.mousePosition = { x: 0, y: 0 };
     this.height = drawingCanvas.height;
     this.width = drawingCanvas.width;
+    this.isDragging = false;
     const hitCanvas = document.createElement("canvas");
     this.hitCtx = hitCanvas.getContext("2d") as CanvasRenderingContext2D;
     hitCanvas.height = this.height;
     hitCanvas.width = this.width;
+    this.selectedId = undefined;
     this.tileSize = 25;
     this.colorHash = {};
     this.worldSize = 600 / this.tileSize;
@@ -124,19 +129,44 @@ export class Engine {
       { source: 2, target: 3 },
     ];
 
-    drawingCanvas.addEventListener("click", (e) => {
-      const mousePos = {
+    drawingCanvas.addEventListener("mousedown", (e) => {
+      this.mousePosition = {
         x: e.clientX - drawingCanvas.offsetLeft,
         y: e.clientY - drawingCanvas.offsetTop,
       };
       let index = -1;
-      const pixel = this.hitCtx.getImageData(mousePos.x, mousePos.y, 1, 1).data;
+      const pixel = this.hitCtx.getImageData(
+        this.mousePosition.x,
+        this.mousePosition.y,
+        1,
+        1
+      ).data;
       const color = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
       index = this.colorHash[color];
-      if (index >= 0) {
-        alert("click on circle: " + index);
+      if (index !== -1) {
+        this.isDragging = true;
+        this.selectedId = index;
+      } else {
+        this.selectedId = undefined;
+      }
+
+      this.drawScene();
+    });
+
+    drawingCanvas.addEventListener("mousemove", (e) => {
+      if (this.selectedId !== undefined && this.isDragging) {
+        this.boxes[this.selectedId].x = e.offsetX;
+        this.boxes[this.selectedId].y = e.offsetY;
+        this.drawScene();
       }
     });
+
+    drawingCanvas.addEventListener("mouseup", (e) => {
+      if (this.isDragging === true) {
+        this.isDragging = false;
+      }
+    });
+
     // this.drawingCanvas.width = this.drawingCanvas.clientWidth;
     // this.drawingCanvas.height = this.drawingCanvas.clientHeight;
     // this.scale = {
@@ -344,15 +374,17 @@ export class Engine {
 
   clear() {
     // drawingCtx.scale(this.scale.x, this.scale.y);
+    this.world = this.initWorld();
     this.drawingCtx.clearRect(0, 0, this.width, this.height);
     this.hitCtx.clearRect(0, 0, this.width, this.height);
   }
 
-  draw() {
+  drawScene() {
     console.log("draw");
     this.clear();
-    this.boxes.forEach((box) => {
-      this.drawBox(box);
+
+    this.boxes.forEach((box, id) => {
+      this.drawBox(box, id);
     });
 
     this.connectors.forEach((connector) => {
@@ -377,13 +409,25 @@ export class Engine {
     });
   }
 
-  drawBox(box: Box) {
+  drawBox(box: Box, id: number) {
     this.drawingCtx.fillRect(
       box.x - box.w / 2,
       box.y - box.h / 2,
       box.w,
       box.h
     );
+    let boxStroke = "none";
+    if (this.selectedId === id) {
+      boxStroke = "#FFBB00";
+      this.drawingCtx.strokeStyle = boxStroke;
+      this.drawingCtx.lineWidth = 4;
+      this.drawingCtx.strokeRect(
+        box.x - box.w / 2,
+        box.y - box.h / 2,
+        box.w,
+        box.h
+      );
+    }
 
     this.hitCtx.fillStyle = box.colorKey;
 
@@ -393,6 +437,8 @@ export class Engine {
   }
 
   drawPath(path: Position[]) {
+    this.drawingCtx.lineWidth = 2;
+    this.drawingCtx.strokeStyle = "black";
     this.drawingCtx.beginPath();
     for (let i = 0; i < path.length - 1; i++) {
       const source = path[i];
