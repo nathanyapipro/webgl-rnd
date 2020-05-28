@@ -42,21 +42,59 @@ export class Engine {
     this.tileSize = 25;
     this.worldSize = 600 / this.tileSize;
     this.boxes = [
-      { x: 25, y: 25, w: 25, h: 25 },
-      { x: 25, y: 225, w: 25, h: 25 },
-      { x: 25, y: 325, w: 25, h: 25 },
-      { x: 25, y: 525, w: 25, h: 25 },
-      { x: 525, y: 25, w: 25, h: 25 },
-      { x: 525, y: 225, w: 25, h: 25 },
-      { x: 525, y: 425, w: 25, h: 25 },
-      { x: 525, y: 525, w: 25, h: 25 },
+      {
+        x: 75,
+        y: 75,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: 475,
+        y: 475,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: 300,
+        y: 70,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: 300,
+        y: 475,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
+        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
+        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
+        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        w: 75,
+        h: 75,
+      },
+      {
+        x: Math.floor(Math.random() * 10 + 4) * this.tileSize,
+        y: Math.floor(Math.random() * 8 + 6) * this.tileSize,
+        w: 75,
+        h: 75,
+      },
     ];
     this.world = this.initWorld();
     this.connectors = [
-      { source: 0, target: 7 },
-      { source: 1, target: 4 },
-      { source: 2, target: 5 },
-      { source: 3, target: 6 },
+      { source: 0, target: 1 },
+      { source: 2, target: 3 },
     ];
     this.drawingCanvas.width = this.drawingCanvas.clientWidth;
     this.drawingCanvas.height = this.drawingCanvas.clientHeight;
@@ -80,10 +118,10 @@ export class Engine {
   }
 
   addBoxToWorld(box: Box) {
-    const width = Math.floor(box.w / this.tileSize);
-    const height = Math.floor(box.h / this.tileSize);
-    const x1 = Math.max(0, Math.floor(box.x / this.tileSize));
-    const y1 = Math.max(0, Math.floor(box.y / this.tileSize));
+    const width = Math.floor((box.w + 50) / this.tileSize);
+    const height = Math.floor((box.h + 50) / this.tileSize);
+    const x1 = Math.max(0, Math.floor((box.x - 25) / this.tileSize));
+    const y1 = Math.max(0, Math.floor((box.y - 25) / this.tileSize));
     const x2 = Math.min(x1 + width, this.worldSize);
     const y2 = Math.min(y1 + height, this.worldSize);
 
@@ -94,9 +132,24 @@ export class Engine {
     }
   }
 
+  removeBoxFromWorld(box: Box) {
+    const width = Math.floor(box.w / this.tileSize) + 2;
+    const height = Math.floor(box.h / this.tileSize) + 2;
+    const x1 = Math.max(0, Math.floor(box.x / this.tileSize) - 1);
+    const y1 = Math.max(0, Math.floor(box.y / this.tileSize) - 1);
+    const x2 = Math.min(x1 + width, this.worldSize);
+    const y2 = Math.min(y1 + height, this.worldSize);
+
+    for (let i = x1; i < x2; i++) {
+      for (let j = y1; j < y2; j++) {
+        this.world[i][j] = 0;
+      }
+    }
+  }
+
   addConnectorToWorld(path: Position[]) {
     path.forEach(({ x, y }) => {
-      this.world[x][y] += 1.5;
+      this.world[x][y] += 3;
     });
   }
 
@@ -256,24 +309,28 @@ export class Engine {
       this.drawingCanvas.clientHeight
     );
     this.boxes.forEach((box) => {
-      drawingCtx.fillRect(box.x, box.y, box.w, box.h);
+      drawingCtx.fillRect(box.x - box.w / 2, box.y - box.h / 2, box.w, box.h);
       this.addBoxToWorld(box);
     });
 
     this.connectors.forEach((connector) => {
       var box1 = this.boxes[connector.source];
       var box2 = this.boxes[connector.target];
+      this.removeBoxFromWorld(box1);
+      this.removeBoxFromWorld(box2);
       const path = this.getPath(
         {
-          x: Math.floor(box1.x / this.worldSize + 0),
-          y: Math.floor(box1.y / this.worldSize + 1),
+          x: Math.floor(box1.x / this.worldSize),
+          y: Math.floor(box1.y / this.worldSize),
         },
         {
-          x: Math.floor(box2.x / this.worldSize - 0),
-          y: Math.floor(box2.y / this.worldSize + 1),
+          x: Math.floor(box2.x / this.worldSize),
+          y: Math.floor(box2.y / this.worldSize),
         }
       );
       this.drawPath(path);
+      this.addBoxToWorld(box1);
+      this.addBoxToWorld(box2);
       this.addConnectorToWorld(path);
     });
   }

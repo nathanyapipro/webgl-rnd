@@ -36,7 +36,7 @@ const useStyles = makeStyles({
     display: "flex",
     flex: 0,
     height: 600,
-    wdth: 600,
+    width: 600,
     border: `2px solid black`,
     borderRadius: 4,
   },
