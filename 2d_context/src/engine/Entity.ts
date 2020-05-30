@@ -83,9 +83,11 @@ export class Entity {
 
   drawHit(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = this.colorKey;
+    const m = this.worldMatrix;
+    ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    const { x, y, w, h } = this.getHit();
-    ctx.fillRect(x, y, w, h);
+    // const { x, y, w, h } = this.getHit();
+    ctx.fillRect(-this.meta.w / 2, -this.meta.h / 2, this.meta.w, this.meta.h);
   }
 
   origin() {
@@ -96,35 +98,24 @@ export class Entity {
   drawSelected(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = "#FFBB00";
     ctx.lineWidth = 4;
-    const [x0, y0] = m3.multiply(this.worldMatrix, [
+    const m = this.worldMatrix;
+    ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
+
+    // const { x, y, w, h } = this.getHit();
+    ctx.strokeRect(
       -this.meta.w / 2,
       -this.meta.h / 2,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-    ]);
-    ctx.strokeRect(x0, y0, this.meta.w, this.meta.h);
+      this.meta.w,
+      this.meta.h
+    );
   }
 
   draw(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = "none";
 
-    const [x0, y0, ...rest] = m3.multiply(this.worldMatrix, [
-      -this.meta.w / 2,
-      -this.meta.h / 2,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-    ]);
+    const m = this.worldMatrix;
+    ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    ctx.fillRect(x0, y0, this.meta.w, this.meta.h);
+    ctx.fillRect(-this.meta.w / 2, -this.meta.h / 2, this.meta.w, this.meta.h);
   }
 }

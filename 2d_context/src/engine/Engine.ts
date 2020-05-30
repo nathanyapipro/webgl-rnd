@@ -123,6 +123,8 @@ export class Engine {
 
   clear() {
     this.pathfinding.world = initWorld(this.pathfinding);
+    this.ctx.drawing.resetTransform();
+    this.ctx.hit.resetTransform();
     this.ctx.drawing.clearRect(0, 0, this.ctx.width, this.ctx.height);
     this.ctx.hit.clearRect(0, 0, this.ctx.width, this.ctx.height);
   }
@@ -158,34 +160,8 @@ export class Engine {
     });
   }
 
-  // drawBox(box: Box, id: number) {
-  //   this.ctx.drawing.fillRect(
-  //     box.x - box.w / 2,
-  //     box.y - box.h / 2,
-  //     box.w,
-  //     box.h
-  //   );
-  // let boxStroke = "none";
-  // if (this.ui.selectedId === id) {
-  //   boxStroke = "#FFBB00";
-  //   this.ctx.drawing.strokeStyle = boxStroke;
-  //   this.ctx.drawing.lineWidth = 4;
-  //   this.ctx.drawing.strokeRect(
-  //     box.x - box.w / 2,
-  //     box.y - box.h / 2,
-  //     box.w,
-  //     box.h
-  //   );
-  // }
-
-  //   this.ctx.hit.fillStyle = box.colorKey;
-
-  //   this.ctx.hit.fillRect(box.x - box.w / 2, box.y - box.h / 2, box.w, box.h);
-
-  //   updateBoxInWorld(this.pathfinding, box, 5);
-  // }
-
   drawPath(path: Position[]) {
+    this.ctx.drawing.resetTransform();
     this.ctx.drawing.lineWidth = 2;
     this.ctx.drawing.strokeStyle = "black";
     this.ctx.drawing.beginPath();
