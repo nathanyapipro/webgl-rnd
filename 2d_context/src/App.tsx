@@ -51,7 +51,6 @@ function App() {
   useEffect(() => {
     if (drawingCanvasRef && drawingCanvasRef.current && !engine) {
       setEngine(new Engine(drawingCanvasRef.current));
-      console.log("create engine");
     }
   }, [drawingCanvasRef, engine]);
 
