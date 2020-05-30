@@ -1,4 +1,5 @@
 import { Entity } from "./Entity";
+import { Context } from "./Engine";
 
 export interface Position {
   x: number;
@@ -30,16 +31,34 @@ export function initWorld(pathfinding: Pathfinding) {
   return map;
 }
 
+export function setHitToWorld(pathfinding: Pathfinding, ctx: Context) {
+  const imageData = ctx.hit.getImageData(0, 0, ctx.width, ctx.height);
+  for (let i = 0; i < pathfinding.worldWidth; i++) {
+    for (let j = 0; j < pathfinding.worldHeight; j++) {
+      const index = (i * pathfinding.tileSize + j * pathfinding.tileSize) * 4;
+
+      if (
+        imageData.data[index] ||
+        imageData.data[index + 1] ||
+        imageData.data[index + 2]
+      ) {
+        pathfinding.world[i][j] = 5;
+      }
+    }
+  }
+}
+
 export function updateBoxInWorld(
   pathfinding: Pathfinding,
   entity: Entity,
   weight: number
 ) {
   const { x, y, h, w } = entity.getHit();
-  const width = Math.floor((w + 50) / pathfinding.tileSize);
-  const height = Math.floor((h + 50) / pathfinding.tileSize);
-  const x1 = Math.max(0, Math.floor((x - 25) / pathfinding.tileSize));
-  const y1 = Math.max(0, Math.floor((y - 25) / pathfinding.tileSize));
+
+  const width = Math.floor(w / pathfinding.tileSize);
+  const height = Math.floor(h / pathfinding.tileSize);
+  const x1 = Math.max(0, Math.floor(x / pathfinding.tileSize));
+  const y1 = Math.max(0, Math.floor(y / pathfinding.tileSize));
   const x2 = Math.min(x1 + width, pathfinding.worldWidth);
   const y2 = Math.min(y1 + height, pathfinding.worldHeight);
 

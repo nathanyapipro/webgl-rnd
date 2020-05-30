@@ -63,8 +63,8 @@ export class Entity {
 
   getHit() {
     const [x0, y0] = m3.multiply(this.worldMatrix, [
-      -this.meta.w / 2,
-      -this.meta.h / 2,
+      (-this.meta.w - 25) / 2,
+      (-this.meta.h - 25) / 2,
       1,
       0,
       0,
@@ -76,8 +76,8 @@ export class Entity {
     return {
       x: x0,
       y: y0,
-      w: this.meta.w,
-      h: this.meta.h,
+      w: this.meta.w + 50,
+      h: this.meta.h + 50,
     };
   }
 
@@ -86,8 +86,12 @@ export class Entity {
     const m = this.worldMatrix;
     ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    // const { x, y, w, h } = this.getHit();
-    ctx.fillRect(-this.meta.w / 2, -this.meta.h / 2, this.meta.w, this.meta.h);
+    ctx.fillRect(
+      (-this.meta.w - 25) / 2,
+      (-this.meta.h - 25) / 2,
+      this.meta.w + 50,
+      this.meta.h + 50
+    );
   }
 
   origin() {

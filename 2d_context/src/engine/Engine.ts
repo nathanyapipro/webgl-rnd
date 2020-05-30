@@ -3,6 +3,7 @@ import {
   Pathfinding,
   getPath,
   initWorld,
+  // setHitToWorld,
   updateBoxInWorld,
   updateConnectorInWorld,
   convertToWorldCoordinates,
@@ -79,6 +80,8 @@ export class Engine {
     this.connectors = [
       { source: 0, target: 1 },
       { source: 2, target: 3 },
+      { source: 4, target: 5 },
+      { source: 6, target: 7 },
     ];
     this.entities.forEach(({ colorKey }, index) => {
       this.ui.colorHash[colorKey] = index;
@@ -142,26 +145,31 @@ export class Engine {
       updateBoxInWorld(this.pathfinding, entity, 5);
     });
 
+    // setHitToWorld(this.pathfinding, this.ctx);
+
+    // console.log(this.pathfinding.world);
+
     this.connectors.forEach((connector) => {
-      var box1 = this.entities[connector.source];
-      var box2 = this.entities[connector.target];
-      updateBoxInWorld(this.pathfinding, box1, 0);
-      updateBoxInWorld(this.pathfinding, box2, 0);
+      var sourceEntity = this.entities[connector.source];
+      var targetEntity = this.entities[connector.target];
+      updateBoxInWorld(this.pathfinding, sourceEntity, 0);
+      updateBoxInWorld(this.pathfinding, targetEntity, 0);
 
       const path = getPath(
         this.pathfinding,
-        convertToWorldCoordinates(this.pathfinding, box1.origin()),
-        convertToWorldCoordinates(this.pathfinding, box2.origin())
+        convertToWorldCoordinates(this.pathfinding, sourceEntity.origin()),
+        convertToWorldCoordinates(this.pathfinding, targetEntity.origin())
       );
-      this.drawPath(path);
-      updateBoxInWorld(this.pathfinding, box1, 5);
-      updateBoxInWorld(this.pathfinding, box2, 5);
+      this.drawPath(path, sourceEntity, targetEntity);
+      updateBoxInWorld(this.pathfinding, sourceEntity, 5);
+      updateBoxInWorld(this.pathfinding, targetEntity, 5);
       updateConnectorInWorld(this.pathfinding, path, 3);
     });
   }
 
-  drawPath(path: Position[]) {
+  drawPath(path: Position[], sourceEntity: Entity, targetEntity: Entity) {
     this.ctx.drawing.resetTransform();
+
     this.ctx.drawing.lineWidth = 2;
     this.ctx.drawing.strokeStyle = "black";
     this.ctx.drawing.beginPath();

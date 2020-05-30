@@ -83,61 +83,41 @@ export function seedEntities(): Entity[] {
         w: 75,
       },
     }),
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: 75,
-    //   y: 75,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: 525,
-    //   y: 525,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: 525,
-    //   y: 75,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: 75,
-    //   y: 525,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: Math.floor(Math.random() * 3 + 3) * 25,
-    //   y: Math.floor(Math.random() * 10 + 8) * 25,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: Math.floor(Math.random() * 3 + 8) * 25,
-    //   y: Math.floor(Math.random() * 10 + 8) * 25,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: Math.floor(Math.random() * 3 + 13) * 25,
-    //   y: Math.floor(Math.random() * 10 + 8) * 25,
-    //   w: 75,
-    //   h: 75,
-    // },
-    // {
-    //   colorKey: genRandomColor(),
-    //   x: Math.floor(Math.random() * 3 + 18) * 25,
-    //   y: Math.floor(Math.random() * 10 + 8) * 25,
-    //   w: 75,
-    //   h: 75,
-    // },
+    new Entity({
+      id: 4,
+      localMatrix: m3.translation(175, 525),
+      type: "rect",
+      meta: {
+        h: 75,
+        w: 75,
+      },
+    }),
+    new Entity({
+      id: 5,
+      localMatrix: m3.translation(275, 225),
+      type: "rect",
+      meta: {
+        h: 75,
+        w: 75,
+      },
+    }),
+    new Entity({
+      id: 6,
+      localMatrix: m3.translation(375, 125),
+      type: "rect",
+      meta: {
+        h: 75,
+        w: 75,
+      },
+    }),
+    new Entity({
+      id: 7,
+      localMatrix: m3.translation(75, 225),
+      type: "rect",
+      meta: {
+        h: 75,
+        w: 75,
+      },
+    }),
   ];
 }
