@@ -1,4 +1,4 @@
-import { Box } from "./Engine";
+import { Entity } from "./Entity";
 
 export interface Position {
   x: number;
@@ -32,13 +32,14 @@ export function initWorld(pathfinding: Pathfinding) {
 
 export function updateBoxInWorld(
   pathfinding: Pathfinding,
-  box: Box,
+  entity: Entity,
   weight: number
 ) {
-  const width = Math.floor((box.w + 50) / pathfinding.tileSize);
-  const height = Math.floor((box.h + 50) / pathfinding.tileSize);
-  const x1 = Math.max(0, Math.floor((box.x - 25) / pathfinding.tileSize));
-  const y1 = Math.max(0, Math.floor((box.y - 25) / pathfinding.tileSize));
+  const { x, y, h, w } = entity.getHit();
+  const width = Math.floor((w + 50) / pathfinding.tileSize);
+  const height = Math.floor((h + 50) / pathfinding.tileSize);
+  const x1 = Math.max(0, Math.floor((x - 25) / pathfinding.tileSize));
+  const y1 = Math.max(0, Math.floor((y - 25) / pathfinding.tileSize));
   const x2 = Math.min(x1 + width, pathfinding.worldWidth);
   const y2 = Math.min(y1 + height, pathfinding.worldHeight);
 

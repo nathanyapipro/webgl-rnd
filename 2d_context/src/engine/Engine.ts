@@ -8,141 +8,148 @@ import {
   convertToWorldCoordinates,
   convertToCanvasCoordinates,
 } from "./pathfinding";
-
-export interface Box {
-  colorKey: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+import { seedEntities } from "./utils";
+import * as m3 from "./math";
+import { Entity } from "./Entity";
 
 export interface Connectors {
   source: number;
   target: number;
 }
 
-export interface Scale {
-  x: number;
-  y: number;
-}
-
-export class Engine {
-  drawingCtx: CanvasRenderingContext2D;
-  hitCtx: CanvasRenderingContext2D;
-  width: number;
-  height: number;
-  mousePosition: Position;
-  boxes: Box[];
+export interface UI {
   selectedId?: number;
-  connectors: Connectors[];
-  pathfinding: Pathfinding;
   isDragging: boolean;
   colorHash: {
     [key: string]: number;
   };
-  // scale: Scale;
+}
 
-  constructor(drawingCanvas: HTMLCanvasElement) {
-    this.drawingCtx = drawingCanvas.getContext(
-      "2d"
-    ) as CanvasRenderingContext2D;
-    this.mousePosition = { x: 0, y: 0 };
-    this.height = drawingCanvas.height;
-    this.width = drawingCanvas.width;
-    this.isDragging = false;
+export interface Context {
+  drawing: CanvasRenderingContext2D;
+  hit: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+}
+
+export class Engine {
+  ctx: Context;
+  ui: UI;
+  pathfinding: Pathfinding;
+  entities: Entity[];
+  connectors: Connectors[];
+
+  constructor(canvas: HTMLCanvasElement) {
+    const height = canvas.height;
+    const width = canvas.width;
+
+    // Initalize drawing canvas
+    const drawingCtx = canvas.getContext("2d");
+    // Initialize hit canvas
     const hitCanvas = document.createElement("canvas");
-    this.hitCtx = hitCanvas.getContext("2d") as CanvasRenderingContext2D;
-    hitCanvas.height = this.height;
-    hitCanvas.width = this.width;
-    this.selectedId = undefined;
+
+    const hitCtx = hitCanvas.getContext("2d");
+
+    if (drawingCtx && hitCtx) {
+      this.ctx = {
+        drawing: drawingCtx,
+        hit: hitCtx,
+        height,
+        width,
+      };
+      hitCanvas.height = this.ctx.height;
+      hitCanvas.width = this.ctx.width;
+    } else {
+      throw new Error();
+    }
+
     this.pathfinding = {
       tileSize: 25,
-      worldHeight: this.height / 25,
-      worldWidth: this.width / 25,
+      worldHeight: this.ctx.height / 25,
+      worldWidth: this.ctx.width / 25,
       world: [],
     };
     this.pathfinding.world = initWorld(this.pathfinding);
-    this.colorHash = {};
-    this.boxes = seedBoxes(this.getRandomColor);
-    this.boxes.forEach(({ colorKey }, index) => {
-      this.colorHash[colorKey] = index;
-    });
+    this.entities = seedEntities();
+    this.ui = {
+      isDragging: false,
+      selectedId: undefined,
+      colorHash: {},
+    };
     this.connectors = [
       { source: 0, target: 1 },
       { source: 2, target: 3 },
-      { source: 4, target: 5 },
-      { source: 6, target: 7 },
     ];
+    this.entities.forEach(({ colorKey }, index) => {
+      this.ui.colorHash[colorKey] = index;
+    });
 
-    drawingCanvas.addEventListener("mousedown", (e) => {
-      this.mousePosition = {
-        x: e.clientX - drawingCanvas.offsetLeft,
-        y: e.clientY - drawingCanvas.offsetTop,
-      };
+    canvas.addEventListener("mousedown", (e) => {
+      const x = e.clientX - canvas.offsetLeft;
+      const y = e.clientY - canvas.offsetTop;
       let index = -1;
-      const pixel = this.hitCtx.getImageData(
-        this.mousePosition.x,
-        this.mousePosition.y,
-        1,
-        1
-      ).data;
+      const pixel = this.ctx.hit.getImageData(x, y, 1, 1).data;
       const color = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
-      index = this.colorHash[color];
+      index = this.ui.colorHash[color];
       if (index !== -1) {
-        this.isDragging = true;
-        this.selectedId = index;
+        this.ui.isDragging = true;
+        this.ui.selectedId = index;
       } else {
-        this.selectedId = undefined;
+        this.ui.selectedId = undefined;
       }
 
       this.drawScene();
     });
 
-    drawingCanvas.addEventListener("mousemove", (e) => {
-      if (this.selectedId !== undefined && this.isDragging) {
-        this.boxes[this.selectedId].x = e.offsetX;
-        this.boxes[this.selectedId].y = e.offsetY;
+    canvas.addEventListener("mousemove", (e) => {
+      if (this.ui.selectedId !== undefined && this.ui.isDragging) {
+        this.entities[this.ui.selectedId].localMatrix = m3.translation(
+          e.offsetX,
+          e.offsetY
+        );
+
+        this.entities[this.ui.selectedId].updateWorldMatrix();
+
         this.drawScene();
       }
     });
 
-    drawingCanvas.addEventListener("mouseup", (e) => {
-      if (this.isDragging === true) {
-        this.isDragging = false;
+    canvas.addEventListener("mouseup", (e) => {
+      if (this.ui.isDragging === true) {
+        this.ui.isDragging = false;
       }
     });
   }
 
-  getRandomColor() {
-    const r = Math.round(Math.random() * 255);
-    const g = Math.round(Math.random() * 255);
-    const b = Math.round(Math.random() * 255);
-    return `rgb(${r},${g},${b})`;
-  }
-
   clear() {
     this.pathfinding.world = initWorld(this.pathfinding);
-    this.drawingCtx.clearRect(0, 0, this.width, this.height);
-    this.hitCtx.clearRect(0, 0, this.width, this.height);
+    this.ctx.drawing.clearRect(0, 0, this.ctx.width, this.ctx.height);
+    this.ctx.hit.clearRect(0, 0, this.ctx.width, this.ctx.height);
   }
 
   drawScene() {
     this.clear();
 
-    this.boxes.forEach((box, id) => {
-      this.drawBox(box, id);
+    this.entities.forEach((entity, id) => {
+      entity.draw(this.ctx.drawing);
+      entity.drawHit(this.ctx.hit);
+
+      if (this.ui.selectedId === id) {
+        entity.drawSelected(this.ctx.drawing);
+      }
+      updateBoxInWorld(this.pathfinding, entity, 5);
     });
 
     this.connectors.forEach((connector) => {
-      var box1 = this.boxes[connector.source];
-      var box2 = this.boxes[connector.target];
+      var box1 = this.entities[connector.source];
+      var box2 = this.entities[connector.target];
       updateBoxInWorld(this.pathfinding, box1, 0);
       updateBoxInWorld(this.pathfinding, box2, 0);
+
       const path = getPath(
         this.pathfinding,
-        convertToWorldCoordinates(this.pathfinding, box1),
-        convertToWorldCoordinates(this.pathfinding, box2)
+        convertToWorldCoordinates(this.pathfinding, box1.origin()),
+        convertToWorldCoordinates(this.pathfinding, box2.origin())
       );
       this.drawPath(path);
       updateBoxInWorld(this.pathfinding, box1, 5);
@@ -151,105 +158,44 @@ export class Engine {
     });
   }
 
-  drawBox(box: Box, id: number) {
-    this.drawingCtx.fillRect(
-      box.x - box.w / 2,
-      box.y - box.h / 2,
-      box.w,
-      box.h
-    );
-    let boxStroke = "none";
-    if (this.selectedId === id) {
-      boxStroke = "#FFBB00";
-      this.drawingCtx.strokeStyle = boxStroke;
-      this.drawingCtx.lineWidth = 4;
-      this.drawingCtx.strokeRect(
-        box.x - box.w / 2,
-        box.y - box.h / 2,
-        box.w,
-        box.h
-      );
-    }
+  // drawBox(box: Box, id: number) {
+  //   this.ctx.drawing.fillRect(
+  //     box.x - box.w / 2,
+  //     box.y - box.h / 2,
+  //     box.w,
+  //     box.h
+  //   );
+  // let boxStroke = "none";
+  // if (this.ui.selectedId === id) {
+  //   boxStroke = "#FFBB00";
+  //   this.ctx.drawing.strokeStyle = boxStroke;
+  //   this.ctx.drawing.lineWidth = 4;
+  //   this.ctx.drawing.strokeRect(
+  //     box.x - box.w / 2,
+  //     box.y - box.h / 2,
+  //     box.w,
+  //     box.h
+  //   );
+  // }
 
-    this.hitCtx.fillStyle = box.colorKey;
+  //   this.ctx.hit.fillStyle = box.colorKey;
 
-    this.hitCtx.fillRect(box.x - box.w / 2, box.y - box.h / 2, box.w, box.h);
+  //   this.ctx.hit.fillRect(box.x - box.w / 2, box.y - box.h / 2, box.w, box.h);
 
-    updateBoxInWorld(this.pathfinding, box, 5);
-  }
+  //   updateBoxInWorld(this.pathfinding, box, 5);
+  // }
 
   drawPath(path: Position[]) {
-    this.drawingCtx.lineWidth = 2;
-    this.drawingCtx.strokeStyle = "black";
-    this.drawingCtx.beginPath();
+    this.ctx.drawing.lineWidth = 2;
+    this.ctx.drawing.strokeStyle = "black";
+    this.ctx.drawing.beginPath();
     for (let i = 0; i < path.length - 1; i++) {
       const source = convertToCanvasCoordinates(this.pathfinding, path[i]);
       const target = convertToCanvasCoordinates(this.pathfinding, path[i + 1]);
-      this.drawingCtx.moveTo(source.x, source.y);
-      this.drawingCtx.lineTo(target.x, target.y);
+      this.ctx.drawing.moveTo(source.x, source.y);
+      this.ctx.drawing.lineTo(target.x, target.y);
     }
 
-    this.drawingCtx.stroke();
+    this.ctx.drawing.stroke();
   }
-}
-
-export function seedBoxes(genColorKey: () => string): Box[] {
-  return [
-    {
-      colorKey: genColorKey(),
-      x: 75,
-      y: 75,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: 525,
-      y: 525,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: 525,
-      y: 75,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: 75,
-      y: 525,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: Math.floor(Math.random() * 3 + 3) * 25,
-      y: Math.floor(Math.random() * 10 + 8) * 25,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: Math.floor(Math.random() * 3 + 8) * 25,
-      y: Math.floor(Math.random() * 10 + 8) * 25,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: Math.floor(Math.random() * 3 + 13) * 25,
-      y: Math.floor(Math.random() * 10 + 8) * 25,
-      w: 75,
-      h: 75,
-    },
-    {
-      colorKey: genColorKey(),
-      x: Math.floor(Math.random() * 3 + 18) * 25,
-      y: Math.floor(Math.random() * 10 + 8) * 25,
-      w: 75,
-      h: 75,
-    },
-  ];
 }
