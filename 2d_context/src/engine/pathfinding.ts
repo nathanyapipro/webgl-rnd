@@ -30,23 +30,6 @@ export function initWorld(pathfinding: Pathfinding) {
   }
 }
 
-// export function setHitToWorld(pathfinding: Pathfinding, ctx: Context) {
-//   const imageData = ctx.hit.getImageData(0, 0, ctx.width, ctx.height);
-//   for (let i = 0; i < pathfinding.worldWidth; i++) {
-//     for (let j = 0; j < pathfinding.worldHeight; j++) {
-//       const index = (i * pathfinding.tileSize + j * pathfinding.tileSize) * 4;
-
-//       if (
-//         imageData.data[index] ||
-//         imageData.data[index + 1] ||
-//         imageData.data[index + 2]
-//       ) {
-//         pathfinding.world[i][j] = 5;
-//       }
-//     }
-//   }
-// }
-
 export function updateBoxInWorld(
   cxt: CanvasRenderingContext2D,
   pathfinding: Pathfinding,
@@ -102,16 +85,11 @@ export function distance(
   node: Position,
   goal: Position
 ) {
-  // linear movement - no diagonals - just cardinal directions (NSEW)
   return (
     Math.abs(node.x - goal.x) +
     Math.abs(node.y - goal.y) +
     pathfinding.world[node.x][node.y] * 0.5
   );
-  // return Math.max(Math.abs(node.x - goal.x), Math.abs(node.y - goal.y) );
-  // return Math.sqrt(
-  //   Math.pow(node.x - goal.x, 2) + Math.pow(node.y - goal.y, 2)
-  // );
 }
 
 export function canWalkHere(pathfinding: Pathfinding, p: Position) {
