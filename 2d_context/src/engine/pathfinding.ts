@@ -21,46 +21,44 @@ export interface Pathfinding {
 }
 
 export function initWorld(pathfinding: Pathfinding) {
-  const map = [[]] as number[][];
+  pathfinding.world = [] as number[][];
   for (let i = 0; i < pathfinding.worldWidth; i++) {
-    map[i] = [];
+    pathfinding.world[i] = [];
     for (let j = 0; j < pathfinding.worldHeight; j++) {
-      map[i][j] = 0;
-    }
-  }
-  return map;
-}
-
-export function setHitToWorld(pathfinding: Pathfinding, ctx: Context) {
-  const imageData = ctx.hit.getImageData(0, 0, ctx.width, ctx.height);
-  for (let i = 0; i < pathfinding.worldWidth; i++) {
-    for (let j = 0; j < pathfinding.worldHeight; j++) {
-      const index = (i * pathfinding.tileSize + j * pathfinding.tileSize) * 4;
-
-      if (
-        imageData.data[index] ||
-        imageData.data[index + 1] ||
-        imageData.data[index + 2]
-      ) {
-        pathfinding.world[i][j] = 5;
-      }
+      pathfinding.world[i][j] = 0;
     }
   }
 }
+
+// export function setHitToWorld(pathfinding: Pathfinding, ctx: Context) {
+//   const imageData = ctx.hit.getImageData(0, 0, ctx.width, ctx.height);
+//   for (let i = 0; i < pathfinding.worldWidth; i++) {
+//     for (let j = 0; j < pathfinding.worldHeight; j++) {
+//       const index = (i * pathfinding.tileSize + j * pathfinding.tileSize) * 4;
+
+//       if (
+//         imageData.data[index] ||
+//         imageData.data[index + 1] ||
+//         imageData.data[index + 2]
+//       ) {
+//         pathfinding.world[i][j] = 5;
+//       }
+//     }
+//   }
+// }
 
 export function updateBoxInWorld(
+  cxt: CanvasRenderingContext2D,
   pathfinding: Pathfinding,
   entity: Entity,
   weight: number
 ) {
-  const { x, y, h, w } = entity.getHit();
+  const { x, y, h, w } = entity.getWorldHit(pathfinding, cxt);
 
-  const width = Math.floor(w / pathfinding.tileSize);
-  const height = Math.floor(h / pathfinding.tileSize);
-  const x1 = Math.max(0, Math.floor(x / pathfinding.tileSize));
-  const y1 = Math.max(0, Math.floor(y / pathfinding.tileSize));
-  const x2 = Math.min(x1 + width, pathfinding.worldWidth);
-  const y2 = Math.min(y1 + height, pathfinding.worldHeight);
+  const x1 = Math.max(0, x - 2);
+  const y1 = Math.max(0, y - 2);
+  const x2 = Math.min(x1 + w + 2, pathfinding.worldWidth);
+  const y2 = Math.min(y1 + h + 2, pathfinding.worldHeight);
 
   for (let i = x1; i < x2; i++) {
     for (let j = y1; j < y2; j++) {
@@ -75,7 +73,7 @@ export function updateConnectorInWorld(
   weight: number
 ) {
   path.forEach(({ x, y }) => {
-    pathfinding.world[x][y] += weight;
+    pathfinding.world[x][y] = weight;
   });
 }
 
@@ -108,7 +106,7 @@ export function distance(
   return (
     Math.abs(node.x - goal.x) +
     Math.abs(node.y - goal.y) +
-    pathfinding.world[node.x][node.y]
+    pathfinding.world[node.x][node.y] * 0.5
   );
   // return Math.max(Math.abs(node.x - goal.x), Math.abs(node.y - goal.y) );
   // return Math.sqrt(

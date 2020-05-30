@@ -1,5 +1,8 @@
 import { genRandomColor } from "./utils";
 import * as m3 from "./math";
+import { Pathfinding } from "./pathfinding";
+import createMixins from "@material-ui/core/styles/createMixins";
+import { Context } from "./Engine";
 
 export interface Rect {
   w: number;
@@ -23,8 +26,8 @@ export class Entity {
     meta: Rect;
   }) {
     this.id = data.id;
-    this.localMatrix = data.localMatrix;
-    this.worldMatrix = data.localMatrix;
+    this.localMatrix = m3.translate(data.localMatrix, 0, 0);
+    this.worldMatrix = [...this.localMatrix];
     this.type = data.type;
     this.colorKey = genRandomColor();
     this.children = [];
@@ -55,71 +58,57 @@ export class Entity {
     }
 
     // now process all the children
-    var worldMatrix = this.worldMatrix;
+    const worldMatrix = this.worldMatrix;
     this.children.forEach(function (child) {
       child.updateWorldMatrix(worldMatrix);
     });
   }
 
-  getHit() {
-    const [x0, y0] = m3.multiply(this.worldMatrix, [
-      (-this.meta.w - 25) / 2,
-      (-this.meta.h - 25) / 2,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-    ]);
+  getWorldHit(pathfinding: Pathfinding, ctx: CanvasRenderingContext2D) {
+    const { x, y } = this.origin(pathfinding, ctx);
     return {
-      x: x0,
-      y: y0,
-      w: this.meta.w + 50,
-      h: this.meta.h + 50,
+      x: Math.floor(x / pathfinding.tileSize),
+      y: Math.floor(y / pathfinding.tileSize),
+      w: Math.floor(this.meta.w / pathfinding.tileSize),
+      h: Math.floor(this.meta.h / pathfinding.tileSize),
     };
   }
 
   drawHit(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = this.colorKey;
+    ctx.resetTransform();
     const m = this.worldMatrix;
     ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    ctx.fillRect(
-      (-this.meta.w - 25) / 2,
-      (-this.meta.h - 25) / 2,
-      this.meta.w + 50,
-      this.meta.h + 50
-    );
+    ctx.fillRect(0, 0, this.meta.w, this.meta.h);
   }
 
-  origin() {
-    const [x0, y0] = m3.multiply(this.worldMatrix, [0, 0, 1, 0, 0, 0, 0, 0, 0]);
-    return { x: x0, y: y0 };
+  origin(pathfinding: Pathfinding, ctx: CanvasRenderingContext2D) {
+    ctx.resetTransform();
+    const m = this.worldMatrix;
+    ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
+
+    const matrix = ctx.getTransform();
+
+    return {
+      x: matrix.e + this.meta.w / 2 + pathfinding.tileSize / 2,
+      y: matrix.f + this.meta.h / 2 + pathfinding.tileSize / 2,
+    };
   }
 
   drawSelected(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = "#FFBB00";
     ctx.lineWidth = 4;
-    const m = this.worldMatrix;
-    ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
-
-    // const { x, y, w, h } = this.getHit();
-    ctx.strokeRect(
-      -this.meta.w / 2,
-      -this.meta.h / 2,
-      this.meta.w,
-      this.meta.h
-    );
+    ctx.strokeRect(0, 0, this.meta.w, this.meta.h);
   }
 
   draw(ctx: CanvasRenderingContext2D) {
+    ctx.resetTransform();
     ctx.strokeStyle = "none";
 
     const m = this.worldMatrix;
     ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    ctx.fillRect(-this.meta.w / 2, -this.meta.h / 2, this.meta.w, this.meta.h);
+    ctx.fillRect(0, 0, this.meta.w, this.meta.h);
   }
 }

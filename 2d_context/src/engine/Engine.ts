@@ -65,12 +65,12 @@ export class Engine {
     }
 
     this.pathfinding = {
-      tileSize: 25,
-      worldHeight: this.ctx.height / 25,
-      worldWidth: this.ctx.width / 25,
+      tileSize: 20,
+      worldHeight: this.ctx.height / 20,
+      worldWidth: this.ctx.width / 20,
       world: [],
     };
-    this.pathfinding.world = initWorld(this.pathfinding);
+    initWorld(this.pathfinding);
     this.entities = seedEntities();
     this.ui = {
       isDragging: false,
@@ -78,10 +78,9 @@ export class Engine {
       colorHash: {},
     };
     this.connectors = [
-      { source: 0, target: 1 },
-      { source: 2, target: 3 },
-      { source: 4, target: 5 },
-      { source: 6, target: 7 },
+      { source: 1, target: 2 },
+      { source: 4, target: 3 },
+      { source: 5, target: 6 },
     ];
     this.entities.forEach(({ colorKey }, index) => {
       this.ui.colorHash[colorKey] = index;
@@ -99,6 +98,7 @@ export class Engine {
         this.ui.selectedId = index;
       } else {
         this.ui.selectedId = undefined;
+        this.ui.isDragging = false;
       }
 
       this.drawScene();
@@ -106,30 +106,31 @@ export class Engine {
 
     canvas.addEventListener("mousemove", (e) => {
       if (this.ui.selectedId !== undefined && this.ui.isDragging) {
-        this.entities[this.ui.selectedId].localMatrix = m3.translation(
-          e.offsetX,
-          e.offsetY
-        );
-
-        this.entities[this.ui.selectedId].updateWorldMatrix();
+        const selectedEntity = this.entities[this.ui.selectedId];
+        const x = e.clientX - canvas.offsetLeft;
+        const y = e.clientY - canvas.offsetTop;
+        selectedEntity.localMatrix = m3.translation(x, y);
 
         this.drawScene();
       }
     });
 
     canvas.addEventListener("mouseup", (e) => {
-      if (this.ui.isDragging === true) {
+      if (this.ui.selectedId !== undefined && this.ui.isDragging) {
         this.ui.isDragging = false;
+
+        this.drawScene();
       }
     });
   }
 
   clear() {
-    this.pathfinding.world = initWorld(this.pathfinding);
     this.ctx.drawing.resetTransform();
     this.ctx.hit.resetTransform();
     this.ctx.drawing.clearRect(0, 0, this.ctx.width, this.ctx.height);
     this.ctx.hit.clearRect(0, 0, this.ctx.width, this.ctx.height);
+    initWorld(this.pathfinding);
+    console.log(this.pathfinding.world);
   }
 
   drawScene() {
@@ -140,34 +141,38 @@ export class Engine {
       entity.drawHit(this.ctx.hit);
 
       if (this.ui.selectedId === id) {
+        entity.updateWorldMatrix(entity.parent?.worldMatrix);
         entity.drawSelected(this.ctx.drawing);
       }
-      updateBoxInWorld(this.pathfinding, entity, 5);
+      updateBoxInWorld(this.ctx.hit, this.pathfinding, entity, 5);
     });
-
-    // setHitToWorld(this.pathfinding, this.ctx);
-
-    // console.log(this.pathfinding.world);
 
     this.connectors.forEach((connector) => {
       var sourceEntity = this.entities[connector.source];
       var targetEntity = this.entities[connector.target];
-      updateBoxInWorld(this.pathfinding, sourceEntity, 0);
-      updateBoxInWorld(this.pathfinding, targetEntity, 0);
+      updateBoxInWorld(this.ctx.hit, this.pathfinding, sourceEntity, 0);
+      updateBoxInWorld(this.ctx.hit, this.pathfinding, targetEntity, 0);
 
       const path = getPath(
         this.pathfinding,
-        convertToWorldCoordinates(this.pathfinding, sourceEntity.origin()),
-        convertToWorldCoordinates(this.pathfinding, targetEntity.origin())
+        convertToWorldCoordinates(
+          this.pathfinding,
+          sourceEntity.origin(this.pathfinding, this.ctx.hit)
+        ),
+        convertToWorldCoordinates(
+          this.pathfinding,
+          targetEntity.origin(this.pathfinding, this.ctx.hit)
+        )
       );
-      this.drawPath(path, sourceEntity, targetEntity);
-      updateBoxInWorld(this.pathfinding, sourceEntity, 5);
-      updateBoxInWorld(this.pathfinding, targetEntity, 5);
-      updateConnectorInWorld(this.pathfinding, path, 3);
+      this.drawPath(path);
+
+      updateConnectorInWorld(this.pathfinding, path, 2);
+      updateBoxInWorld(this.ctx.hit, this.pathfinding, sourceEntity, 5);
+      updateBoxInWorld(this.ctx.hit, this.pathfinding, targetEntity, 5);
     });
   }
 
-  drawPath(path: Position[], sourceEntity: Entity, targetEntity: Entity) {
+  drawPath(path: Position[]) {
     this.ctx.drawing.resetTransform();
 
     this.ctx.drawing.lineWidth = 2;

@@ -9,115 +9,85 @@ export function genRandomColor() {
 }
 
 export function seedEntities(): Entity[] {
-  // const Box1 = new Entity({
-  //   id: 1,
-  //   localMatrix: m3.translation(0, 0),
-  //   type: "box",
-  //   meta: {
-  //     h: 50,
-  //     w: 100,
-  //   },
-  // });
+  const Root = new Entity({
+    id: 1,
+    localMatrix: m3.translation(0, 0),
+    type: "root",
+    meta: {
+      h: 0,
+      w: 0,
+    },
+  });
 
-  // const Box2 = new Entity({
-  //   id: 2,
-  //   localMatrix: m3.translation(100, 100),
-  //   type: "box",
-  //   meta: {
-  //     h: 50,
-  //     w: 100,
-  //   },
-  // });
+  const item1 = new Entity({
+    id: 2,
+    localMatrix: m3.translation(400, 400),
+    type: "box",
+    meta: {
+      h: 55,
+      w: 55,
+    },
+  });
 
-  // const Box3 = new Entity({
-  //   id: 3,
-  //   localMatrix: m3.translation(50, 50),
-  //   type: "box",
-  //   meta: {
-  //     h: 50,
-  //     w: 100,
-  //   },
-  // });
+  const item2 = new Entity({
+    id: 3,
+    localMatrix: m3.translation(50, 400),
+    type: "box",
+    meta: {
+      h: 55,
+      w: 55,
+    },
+  });
 
-  // Box3.setParent(Box2);
-  // Box2.setParent(Box1);
+  const item3 = new Entity({
+    id: 3,
+    localMatrix: m3.translation(75, 75),
+    type: "rect",
+    meta: {
+      h: 55,
+      w: 55,
+    },
+  });
 
-  // Box1.updateWorldMatrix();
+  const item4 = new Entity({
+    id: 4,
+    localMatrix: m3.translation(325, 525),
+    type: "rect",
+    meta: {
+      h: 55,
+      w: 55,
+    },
+  });
+
+  const item5 = new Entity({
+    id: 5,
+    localMatrix: m3.translation(225, 150),
+    type: "rect",
+    meta: {
+      h: 55,
+      w: 55,
+    },
+  });
+  const item6 = new Entity({
+    id: 6,
+    localMatrix: m3.translation(150, 325),
+    type: "rect",
+    meta: {
+      h: 55,
+      w: 55,
+    },
+  });
+
+  item1.setParent(Root);
+  item2.setParent(Root);
+  item3.setParent(Root);
+  item4.setParent(Root);
+  item5.setParent(Root);
+  item6.setParent(Root);
+
+  Root.updateWorldMatrix();
 
   // console.log(Box3.worldMatrix);
 
-  return [
-    new Entity({
-      id: 0,
-      localMatrix: m3.translation(75, 75),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 1,
-      localMatrix: m3.translation(525, 525),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 2,
-      localMatrix: m3.translation(525, 75),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 3,
-      localMatrix: m3.translation(75, 525),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 4,
-      localMatrix: m3.translation(175, 525),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 5,
-      localMatrix: m3.translation(275, 225),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 6,
-      localMatrix: m3.translation(375, 125),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-    new Entity({
-      id: 7,
-      localMatrix: m3.translation(75, 225),
-      type: "rect",
-      meta: {
-        h: 75,
-        w: 75,
-      },
-    }),
-  ];
+  return [Root, item1, item2, item3, item4, item5, item6];
 }
