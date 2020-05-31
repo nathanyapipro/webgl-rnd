@@ -1,5 +1,11 @@
 import { Entity } from "./Entity";
+import { Connectors } from "./Engine";
+
 import * as m3 from "./math";
+
+const ENTITIES_NUMBER_OF = 30;
+const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF*.66)/2; // would be wierd to have more connectors than entities.
+const ENTITY_SQUARE_SIDE = 50;
 
 export function genRandomColor() {
   const r = Math.round(Math.random() * 255);
@@ -8,7 +14,8 @@ export function genRandomColor() {
   return `rgb(${r},${g},${b})`;
 }
 
-export function seedEntities(): Entity[] {
+export function seedEntities(width: number, height: number): Entity[] {
+
   const Root = new Entity({
     id: 1,
     localMatrix: m3.translation(0, 0),
@@ -18,76 +25,58 @@ export function seedEntities(): Entity[] {
       w: 0,
     },
   });
+  const entities = [Root];
 
-  const item1 = new Entity({
-    id: 2,
-    localMatrix: m3.translation(400, 400),
-    type: "box",
-    meta: {
-      h: 75,
-      w: 75,
-    },
-  });
+  for (let itr = 0 ; itr < ENTITIES_NUMBER_OF; itr++ ) {
 
-  const item2 = new Entity({
-    id: 3,
-    localMatrix: m3.translation(50, 400),
-    type: "box",
-    meta: {
-      h: 75,
-      w: 75,
-    },
-  });
+    const item = new Entity({
+      id: itr+1,
+      localMatrix: m3.translation(
+        Math.floor(Math.random() * width-ENTITY_SQUARE_SIDE/2), 
+        Math.floor(Math.random() * height-ENTITY_SQUARE_SIDE/2)),
+      type: "box",
+      meta: {
+        h: ENTITY_SQUARE_SIDE,
+        w: ENTITY_SQUARE_SIDE,
+      },
+    });
 
-  const item3 = new Entity({
-    id: 3,
-    localMatrix: m3.translation(75, 75),
-    type: "rect",
-    meta: {
-      h: 75,
-      w: 75,
-    },
-  });
-
-  const item4 = new Entity({
-    id: 4,
-    localMatrix: m3.translation(325, 525),
-    type: "rect",
-    meta: {
-      h: 75,
-      w: 75,
-    },
-  });
-
-  const item5 = new Entity({
-    id: 5,
-    localMatrix: m3.translation(225, 150),
-    type: "rect",
-    meta: {
-      h: 75,
-      w: 75,
-    },
-  });
-  const item6 = new Entity({
-    id: 6,
-    localMatrix: m3.translation(150, 325),
-    type: "rect",
-    meta: {
-      h: 75,
-      w: 75,
-    },
-  });
-
-  item1.setParent(Root);
-  item2.setParent(Root);
-  item3.setParent(Root);
-  item4.setParent(Root);
-  item5.setParent(Root);
-  item6.setParent(Root);
+    item.setParent(Root);
+    entities.push(item);  
+  }
 
   Root.updateWorldMatrix();
 
-  // console.log(Box3.worldMatrix);
+  return entities ;
+}
 
-  return [Root, item1, item2, item3, item4, item5, item6];
+export function seedConnectors(entityList: Entity[]): Connectors[]  {
+
+  let maxEntity = entityList.length;
+  const connectors:Connectors[] = [];
+
+  // we don't want to duplicate any connectors or previously connected 
+  // entities. After we pick one, move it to the end of the list, 
+  // and mode the end to exclude it. This method is fast - no new mem
+  // allocations, but destructive to the list order, does it matter?
+  const findRandomIndex = ():number => {
+    // get a random index, 
+    const rnd = Math.floor(Math.random()*(maxEntity));
+    const idx = entityList[rnd].id;
+    const swap = entityList[rnd];
+    entityList[rnd] = entityList[maxEntity-1];
+    maxEntity--;
+    entityList[maxEntity] = swap;
+
+    return idx;
+  }
+
+  while ((connectors.length < CONNECTORS_NUMBER_OF) && (maxEntity>0)) {
+    // select two random indices, connect them
+    const source = findRandomIndex();
+    const target = findRandomIndex();
+    connectors.push({source,target});
+  }
+  
+  return connectors;
 }
