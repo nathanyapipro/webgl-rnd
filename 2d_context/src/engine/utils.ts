@@ -91,3 +91,7 @@ export function seedEntities(): Entity[] {
 
   return [Root, item1, item2, item3, item4, item5, item6];
 }
+
+export function clamp(value: number, min: number, max: number) {
+  return Math.max(Math.min(max, value), min);
+}

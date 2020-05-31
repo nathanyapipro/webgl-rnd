@@ -1,5 +1,6 @@
 import { Entity } from "./Entity";
 import { Context } from "./Engine";
+import { clamp } from "./utils";
 
 export interface Position {
   x: number;
@@ -22,9 +23,9 @@ export interface Pathfinding {
 
 export function initWorld(pathfinding: Pathfinding) {
   pathfinding.world = [] as number[][];
-  for (let i = 0; i < pathfinding.worldWidth; i++) {
+  for (let i = -1; i < pathfinding.worldWidth + 1; i++) {
     pathfinding.world[i] = [];
-    for (let j = 0; j < pathfinding.worldHeight; j++) {
+    for (let j = -1; j < pathfinding.worldHeight + 1; j++) {
       pathfinding.world[i][j] = 0;
     }
   }
@@ -36,17 +37,20 @@ export function updateBoxInWorld(
   entity: Entity,
   weight: number
 ) {
-  const origin = entity.origin(cxt);
-  const { x, y } = convertToWorldCoordinates(pathfinding, origin);
-  const { x: w, y: h } = convertToWorldCoordinates(pathfinding, {
-    x: entity.meta.w,
-    y: entity.meta.h,
-  });
+  const { x, y } = entity.origin(cxt);
 
-  const x1 = Math.max(0, x - 1);
-  const y1 = Math.max(0, y - 1);
-  const x2 = Math.min(x1 + w + 2, pathfinding.worldWidth);
-  const y2 = Math.min(y1 + h + 2, pathfinding.worldHeight);
+  const hitbox = [
+    {
+      x: x - 25,
+      y: y - 25,
+    },
+    {
+      x: x + entity.meta.w + 50,
+      y: y + entity.meta.h + 50,
+    },
+  ];
+  const { x: x1, y: y1 } = convertToWorldCoordinates(pathfinding, hitbox[0]);
+  const { x: x2, y: y2 } = convertToWorldCoordinates(pathfinding, hitbox[1]);
 
   for (let i = x1; i < x2; i++) {
     for (let j = y1; j < y2; j++) {
@@ -61,7 +65,7 @@ export function updateConnectorInWorld(
   weight: number
 ) {
   path.forEach(({ x, y }) => {
-    pathfinding.world[x][y] = weight;
+    pathfinding.world[x][y] = +weight;
   });
 }
 
@@ -70,13 +74,15 @@ export function convertToWorldCoordinates(
   p: Position
 ): Position {
   return {
-    x: Math.min(
-      Math.max(0, Math.floor(p.x / pathfinding.worldWidth)),
-      pathfinding.worldWidth - 1
+    x: clamp(
+      Math.floor(p.x / pathfinding.tileSize - 1),
+      -1,
+      pathfinding.worldWidth
     ),
-    y: Math.min(
-      Math.max(0, Math.floor(p.y / pathfinding.worldHeight)),
-      pathfinding.worldHeight - 1
+    y: clamp(
+      Math.floor(p.y / pathfinding.tileSize - 1),
+      -1,
+      pathfinding.worldHeight
     ),
   };
 }
@@ -86,8 +92,16 @@ export function convertToCanvasCoordinates(
   p: Position
 ): Position {
   return {
-    x: p.x * pathfinding.worldWidth + pathfinding.tileSize / 2,
-    y: p.y * pathfinding.worldHeight + pathfinding.tileSize / 2,
+    x: clamp(
+      p.x * pathfinding.tileSize + pathfinding.tileSize * 1,
+      0,
+      pathfinding.tileSize * (pathfinding.worldWidth - 1)
+    ),
+    y: clamp(
+      p.y * pathfinding.tileSize + pathfinding.tileSize * 1,
+      0,
+      pathfinding.tileSize * (pathfinding.worldHeight - 1)
+    ),
   };
 }
 
@@ -99,7 +113,7 @@ export function distance(
   return (
     Math.abs(node.x - goal.x) +
     Math.abs(node.y - goal.y) +
-    pathfinding.world[node.x][node.y] * 0.5
+    pathfinding.world[node.x][node.y] * 2
   );
 }
 
