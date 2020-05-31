@@ -9,7 +9,8 @@ import {
   convertToWorldCoordinates,
   convertToCanvasCoordinates,
 } from "./pathfinding";
-import { seedEntities, clamp } from "./utils";
+import { seedEntities, seedConnectors,clamp } from "./utils";
+
 import * as m3 from "./math";
 import { Entity } from "./Entity";
 
@@ -71,17 +72,14 @@ export class Engine {
       world: [],
     };
     initWorld(this.pathfinding);
-    this.entities = seedEntities();
+    this.entities = seedEntities(this.ctx.width, this.ctx.height);
     this.ui = {
       isDragging: false,
       selectedId: undefined,
       colorHash: {},
     };
-    this.connectors = [
-      { source: 1, target: 2 },
-      { source: 4, target: 3 },
-      { source: 5, target: 6 },
-    ];
+    this.connectors = seedConnectors(this.entities);
+    
     this.entities.forEach(({ colorKey }, index) => {
       this.ui.colorHash[colorKey] = index;
     });
