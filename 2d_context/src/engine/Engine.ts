@@ -156,22 +156,14 @@ export class Engine {
 
       const path = getPath(
         this.pathfinding,
-        convertToWorldCoordinates(this.pathfinding, {
-          x:
-            sourceEntity.origin(this.pathfinding, this.ctx.hit).x +
-            sourceEntity.meta.w / 2,
-          y:
-            sourceEntity.origin(this.pathfinding, this.ctx.hit).y +
-            sourceEntity.meta.h / 2,
-        }),
-        convertToWorldCoordinates(this.pathfinding, {
-          x:
-            targetEntity.origin(this.pathfinding, this.ctx.hit).x +
-            targetEntity.meta.w / 2,
-          y:
-            targetEntity.origin(this.pathfinding, this.ctx.hit).y +
-            targetEntity.meta.h / 2,
-        })
+        convertToWorldCoordinates(
+          this.pathfinding,
+          sourceEntity.center(this.ctx.hit)
+        ),
+        convertToWorldCoordinates(
+          this.pathfinding,
+          targetEntity.center(this.ctx.hit)
+        )
       );
       this.drawPath(path);
 

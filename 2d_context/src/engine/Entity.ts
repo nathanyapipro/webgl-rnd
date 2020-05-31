@@ -65,7 +65,7 @@ export class Entity {
   }
 
   getWorldHit(pathfinding: Pathfinding, ctx: CanvasRenderingContext2D) {
-    const { x, y } = this.origin(pathfinding, ctx);
+    const { x, y } = this.origin(ctx);
     return {
       x: Math.floor(x / pathfinding.tileSize),
       y: Math.floor(y / pathfinding.tileSize),
@@ -83,7 +83,7 @@ export class Entity {
     ctx.fillRect(0, 0, this.meta.w, this.meta.h);
   }
 
-  origin(pathfinding: Pathfinding, ctx: CanvasRenderingContext2D) {
+  origin(ctx: CanvasRenderingContext2D) {
     ctx.resetTransform();
     const m = this.worldMatrix;
     ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
@@ -93,6 +93,15 @@ export class Entity {
     return {
       x: matrix.e,
       y: matrix.f,
+    };
+  }
+
+  center(ctx: CanvasRenderingContext2D) {
+    const origin = this.origin(ctx);
+
+    return {
+      x: origin.x + this.meta.w / 2,
+      y: origin.y + this.meta.h / 2,
     };
   }
 
