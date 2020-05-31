@@ -80,7 +80,7 @@ export class Entity {
     const m = this.worldMatrix;
     ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    ctx.fillRect(0, 0, this.meta.w, this.meta.h);
+    ctx.fillRect(-this.meta.w / 2, -this.meta.h / 2, this.meta.w, this.meta.h);
   }
 
   origin(pathfinding: Pathfinding, ctx: CanvasRenderingContext2D) {
@@ -99,7 +99,12 @@ export class Entity {
   drawSelected(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = "#FFBB00";
     ctx.lineWidth = 4;
-    ctx.strokeRect(0, 0, this.meta.w, this.meta.h);
+    ctx.strokeRect(
+      -this.meta.w / 2,
+      -this.meta.h / 2,
+      this.meta.w,
+      this.meta.h
+    );
   }
 
   draw(ctx: CanvasRenderingContext2D) {
@@ -109,6 +114,6 @@ export class Entity {
     const m = this.worldMatrix;
     ctx.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
 
-    ctx.fillRect(0, 0, this.meta.w, this.meta.h);
+    ctx.fillRect(-this.meta.w / 2, -this.meta.h / 2, this.meta.w, this.meta.h);
   }
 }

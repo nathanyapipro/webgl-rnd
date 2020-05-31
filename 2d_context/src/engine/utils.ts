@@ -24,8 +24,8 @@ export function seedEntities(): Entity[] {
     localMatrix: m3.translation(400, 400),
     type: "box",
     meta: {
-      h: 55,
-      w: 55,
+      h: 75,
+      w: 75,
     },
   });
 
@@ -34,8 +34,8 @@ export function seedEntities(): Entity[] {
     localMatrix: m3.translation(50, 400),
     type: "box",
     meta: {
-      h: 55,
-      w: 55,
+      h: 75,
+      w: 75,
     },
   });
 
@@ -44,8 +44,8 @@ export function seedEntities(): Entity[] {
     localMatrix: m3.translation(75, 75),
     type: "rect",
     meta: {
-      h: 55,
-      w: 55,
+      h: 75,
+      w: 75,
     },
   });
 
@@ -54,8 +54,8 @@ export function seedEntities(): Entity[] {
     localMatrix: m3.translation(325, 525),
     type: "rect",
     meta: {
-      h: 55,
-      w: 55,
+      h: 75,
+      w: 75,
     },
   });
 
@@ -64,8 +64,8 @@ export function seedEntities(): Entity[] {
     localMatrix: m3.translation(225, 150),
     type: "rect",
     meta: {
-      h: 55,
-      w: 55,
+      h: 75,
+      w: 75,
     },
   });
   const item6 = new Entity({
@@ -73,8 +73,8 @@ export function seedEntities(): Entity[] {
     localMatrix: m3.translation(150, 325),
     type: "rect",
     meta: {
-      h: 55,
-      w: 55,
+      h: 75,
+      w: 75,
     },
   });
 

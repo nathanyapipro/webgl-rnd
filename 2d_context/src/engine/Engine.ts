@@ -65,9 +65,9 @@ export class Engine {
     }
 
     this.pathfinding = {
-      tileSize: 20,
-      worldHeight: this.ctx.height / 20,
-      worldWidth: this.ctx.width / 20,
+      tileSize: 10,
+      worldHeight: this.ctx.height / 10,
+      worldWidth: this.ctx.width / 10,
       world: [],
     };
     initWorld(this.pathfinding);

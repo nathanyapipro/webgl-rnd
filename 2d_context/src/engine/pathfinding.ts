@@ -38,8 +38,8 @@ export function updateBoxInWorld(
 ) {
   const { x, y, h, w } = entity.getWorldHit(pathfinding, cxt);
 
-  const x1 = Math.max(0, x - 2);
-  const y1 = Math.max(0, y - 2);
+  const x1 = Math.max(0, x - 1);
+  const y1 = Math.max(0, y - 1);
   const x2 = Math.min(x1 + w + 2, pathfinding.worldWidth);
   const y2 = Math.min(y1 + h + 2, pathfinding.worldHeight);
 
