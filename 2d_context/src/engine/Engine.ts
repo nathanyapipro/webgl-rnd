@@ -9,7 +9,8 @@ import {
   convertToWorldCoordinates,
   convertToCanvasCoordinates,
 } from "./pathfinding";
-import { seedEntities, seedConnectors } from "./utils";
+import { seedEntities, seedConnectors,clamp } from "./utils";
+
 import * as m3 from "./math";
 import { Entity } from "./Entity";
 
@@ -65,9 +66,9 @@ export class Engine {
     }
 
     this.pathfinding = {
-      tileSize: 25,
-      worldHeight: this.ctx.height / 25,
-      worldWidth: this.ctx.width / 25,
+      tileSize: 10,
+      worldHeight: this.ctx.height / 10,
+      worldWidth: this.ctx.width / 10,
       world: [],
     };
     initWorld(this.pathfinding);
@@ -104,8 +105,17 @@ export class Engine {
     canvas.addEventListener("mousemove", (e) => {
       if (this.ui.selectedId !== undefined && this.ui.isDragging) {
         const selectedEntity = this.entities[this.ui.selectedId];
-        const x = e.clientX - canvas.offsetLeft - selectedEntity.meta.w / 2;
-        const y = e.clientY - canvas.offsetTop - selectedEntity.meta.h / 2;
+        const x = clamp(
+          e.clientX - canvas.offsetLeft - selectedEntity.meta.w / 2,
+          0,
+          this.ctx.width - selectedEntity.meta.w
+        );
+        const y = clamp(
+          e.clientY - canvas.offsetTop - selectedEntity.meta.h / 2,
+          0,
+          this.ctx.height - selectedEntity.meta.h
+        );
+
         selectedEntity.localMatrix = m3.translation(x, y);
 
         this.drawScene();
@@ -179,8 +189,14 @@ export class Engine {
     for (let i = 0; i < path.length - 1; i++) {
       const source = convertToCanvasCoordinates(this.pathfinding, path[i]);
       const target = convertToCanvasCoordinates(this.pathfinding, path[i + 1]);
-      this.ctx.drawing.moveTo(source.x, source.y);
-      this.ctx.drawing.lineTo(target.x, target.y);
+      this.ctx.drawing.moveTo(
+        source.x + this.pathfinding.tileSize / 2,
+        source.y + this.pathfinding.tileSize / 2
+      );
+      this.ctx.drawing.lineTo(
+        target.x + this.pathfinding.tileSize / 2,
+        target.y + this.pathfinding.tileSize / 2
+      );
     }
 
     this.ctx.drawing.stroke();

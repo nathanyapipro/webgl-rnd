@@ -80,3 +80,7 @@ export function seedConnectors(entityList: Entity[]): Connectors[]  {
   
   return connectors;
 }
+
+export function clamp(value: number, min: number, max: number) {
+  return Math.max(Math.min(max, value), min);
+}
