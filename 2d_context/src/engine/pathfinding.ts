@@ -41,12 +41,12 @@ export function updateBoxInWorld(
 
   const hitbox = [
     {
-      x: x - 25,
-      y: y - 25,
+      x: x - 10,
+      y: y - 10,
     },
     {
-      x: x + entity.meta.w + 50,
-      y: y + entity.meta.h + 50,
+      x: x + entity.meta.w + 20,
+      y: y + entity.meta.h + 20,
     },
   ];
   const { x: x1, y: y1 } = convertToWorldCoordinates(pathfinding, hitbox[0]);
