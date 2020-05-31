@@ -65,9 +65,9 @@ export class Engine {
     }
 
     this.pathfinding = {
-      tileSize: 10,
-      worldHeight: this.ctx.height / 10,
-      worldWidth: this.ctx.width / 10,
+      tileSize: 25,
+      worldHeight: this.ctx.height / 25,
+      worldWidth: this.ctx.width / 25,
       world: [],
     };
     initWorld(this.pathfinding);
@@ -107,8 +107,8 @@ export class Engine {
     canvas.addEventListener("mousemove", (e) => {
       if (this.ui.selectedId !== undefined && this.ui.isDragging) {
         const selectedEntity = this.entities[this.ui.selectedId];
-        const x = e.clientX - canvas.offsetLeft;
-        const y = e.clientY - canvas.offsetTop;
+        const x = e.clientX - canvas.offsetLeft - selectedEntity.meta.w / 2;
+        const y = e.clientY - canvas.offsetTop - selectedEntity.meta.h / 2;
         selectedEntity.localMatrix = m3.translation(x, y);
 
         this.drawScene();
@@ -130,39 +130,48 @@ export class Engine {
     this.ctx.drawing.clearRect(0, 0, this.ctx.width, this.ctx.height);
     this.ctx.hit.clearRect(0, 0, this.ctx.width, this.ctx.height);
     initWorld(this.pathfinding);
-    console.log(this.pathfinding.world);
+    // console.log(this.pathfinding.world);
   }
 
   drawScene() {
     this.clear();
 
     this.entities.forEach((entity, id) => {
-      entity.draw(this.ctx.drawing);
-      entity.drawHit(this.ctx.hit);
+      entity.updateWorldMatrix(entity.parent?.worldMatrix);
 
+      entity.draw(this.ctx.drawing);
       if (this.ui.selectedId === id) {
-        entity.updateWorldMatrix(entity.parent?.worldMatrix);
         entity.drawSelected(this.ctx.drawing);
       }
+      entity.drawHit(this.ctx.hit);
+
       updateBoxInWorld(this.ctx.hit, this.pathfinding, entity, 5);
     });
 
     this.connectors.forEach((connector) => {
-      var sourceEntity = this.entities[connector.source];
-      var targetEntity = this.entities[connector.target];
+      const sourceEntity = this.entities[connector.source];
+      const targetEntity = this.entities[connector.target];
       updateBoxInWorld(this.ctx.hit, this.pathfinding, sourceEntity, 0);
       updateBoxInWorld(this.ctx.hit, this.pathfinding, targetEntity, 0);
 
       const path = getPath(
         this.pathfinding,
-        convertToWorldCoordinates(
-          this.pathfinding,
-          sourceEntity.origin(this.pathfinding, this.ctx.hit)
-        ),
-        convertToWorldCoordinates(
-          this.pathfinding,
-          targetEntity.origin(this.pathfinding, this.ctx.hit)
-        )
+        convertToWorldCoordinates(this.pathfinding, {
+          x:
+            sourceEntity.origin(this.pathfinding, this.ctx.hit).x +
+            sourceEntity.meta.w / 2,
+          y:
+            sourceEntity.origin(this.pathfinding, this.ctx.hit).y +
+            sourceEntity.meta.h / 2,
+        }),
+        convertToWorldCoordinates(this.pathfinding, {
+          x:
+            targetEntity.origin(this.pathfinding, this.ctx.hit).x +
+            targetEntity.meta.w / 2,
+          y:
+            targetEntity.origin(this.pathfinding, this.ctx.hit).y +
+            targetEntity.meta.h / 2,
+        })
       );
       this.drawPath(path);
 

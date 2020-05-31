@@ -38,10 +38,10 @@ export function updateBoxInWorld(
 ) {
   const { x, y, h, w } = entity.getWorldHit(pathfinding, cxt);
 
-  const x1 = Math.max(0, x - 1);
-  const y1 = Math.max(0, y - 1);
-  const x2 = Math.min(x1 + w + 2, pathfinding.worldWidth);
-  const y2 = Math.min(y1 + h + 2, pathfinding.worldHeight);
+  const x1 = Math.max(0, x);
+  const y1 = Math.max(0, y);
+  const x2 = Math.min(x1 + w, pathfinding.worldWidth);
+  const y2 = Math.min(y1 + h, pathfinding.worldHeight);
 
   for (let i = x1; i < x2; i++) {
     for (let j = y1; j < y2; j++) {
@@ -65,8 +65,14 @@ export function convertToWorldCoordinates(
   p: Position
 ): Position {
   return {
-    x: Math.floor(p.x / pathfinding.worldWidth),
-    y: Math.floor(p.y / pathfinding.worldHeight),
+    x: Math.min(
+      Math.max(0, Math.floor(p.x / pathfinding.worldWidth)),
+      pathfinding.worldWidth - 1
+    ),
+    y: Math.min(
+      Math.max(0, Math.floor(p.y / pathfinding.worldHeight)),
+      pathfinding.worldHeight - 1
+    ),
   };
 }
 
