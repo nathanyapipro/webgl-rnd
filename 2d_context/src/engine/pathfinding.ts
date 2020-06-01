@@ -1,14 +1,15 @@
-import { Entity } from "./Entity";
-import { Context } from "./Engine";
-import { clamp } from "./utils";
+import { Entity } from "./entities";
+import { clamp } from "./helpers/math";
+
+export const PATHFINDING_TILE_SIZE = 10;
 
 export interface Position {
   x: number;
   y: number;
 }
 
-export interface Node extends Position {
-  parent?: Node;
+export interface Tile extends Position {
+  parent?: Tile;
   value: number;
   f: number;
   g: number;
@@ -32,21 +33,20 @@ export function initWorld(pathfinding: Pathfinding) {
 }
 
 export function updateBoxInWorld(
-  cxt: CanvasRenderingContext2D,
   pathfinding: Pathfinding,
   entity: Entity,
   weight: number
 ) {
-  const { x, y } = entity.origin(cxt);
+  const { x, y, w, h } = entity.getCollisionRect();
 
   const hitbox = [
     {
-      x: x - 10,
-      y: y - 10,
+      x: x,
+      y: y,
     },
     {
-      x: x + entity.meta.w + 20,
-      y: y + entity.meta.h + 20,
+      x: x + w,
+      y: y + h,
     },
   ];
   const { x: x1, y: y1 } = convertToWorldCoordinates(pathfinding, hitbox[0]);
@@ -113,7 +113,7 @@ export function distance(
   return (
     Math.abs(node.x - goal.x) +
     Math.abs(node.y - goal.y) +
-    pathfinding.world[node.x][node.y] * 2
+    pathfinding.world[node.x][node.y] * 75
   );
 }
 
@@ -144,24 +144,24 @@ export function neighbours(pathfinding: Pathfinding, p: Position) {
   return result;
 }
 
-export function createNode(
+export function createTile(
   pathfinding: Pathfinding,
-  parent: Node | undefined,
+  parent: Tile | undefined,
   point: Position
 ) {
   return {
-    // pointer to another Node object
+    // pointer to another Tile object
     parent: parent,
-    // array index of this Node in the world linear array
+    // array index of this Tile in the world linear array
     value: point.x + point.y * pathfinding.worldHeight,
-    // the location coordinates of this Node
+    // the location coordinates of this Tile
     x: point.x,
     y: point.y,
     // the distanceFunction cost to get
-    // TO this Node from the START
+    // TO this Tile from the START
     f: 0,
     // the distanceFunction cost to get
-    // from this Node to the GOAL
+    // from this Tile to the GOAL
     g: 0,
   };
 }
@@ -171,70 +171,70 @@ export function getPath(
   start: Position,
   end: Position
 ) {
-  let startNode = createNode(pathfinding, undefined, start);
-  let endNode = createNode(pathfinding, undefined, end);
+  let startTile = createTile(pathfinding, undefined, start);
+  let endTile = createTile(pathfinding, undefined, end);
   // create an array that will contain all world cells
   let aStar: boolean[] = new Array(
     pathfinding.worldHeight * pathfinding.worldWidth
   );
-  // list of currently open Nodes
-  let openNodes: Node[] = [startNode];
-  // list of closed Nodes
-  let closedNodes: Node[] = [];
+  // list of currently open Tiles
+  let openTiles: Tile[] = [startTile];
+  // list of closed Tiles
+  let closedTiles: Tile[] = [];
   // list of the final output array
   let result: Position[] = [];
-  // reference to a Node (that is nearby)
+  // reference to a Tile (that is nearby)
   let myNeighbours: Position[];
-  // reference to a Node (that we are considering now)
-  let myNode: Node;
-  // reference to a Node (that starts a path in question)
-  let myPath: Node | undefined;
+  // reference to a Tile (that we are considering now)
+  let myTile: Tile;
+  // reference to a Tile (that starts a path in question)
+  let myPath: Tile | undefined;
   // temp integer letiables used in the calculations
   let length: number, max: number, min: number, i: number, j: number;
   // iterate through the open list until none are left
-  while ((length = openNodes.length)) {
+  while ((length = openTiles.length)) {
     max = pathfinding.worldHeight * pathfinding.worldWidth;
     min = -1;
     for (i = 0; i < length; i++) {
-      if (openNodes[i].f < max) {
-        max = openNodes[i].f;
+      if (openTiles[i].f < max) {
+        max = openTiles[i].f;
         min = i;
       }
     }
-    // grab the next node and remove it from openNodes array
-    myNode = openNodes.splice(min, 1)[0];
+    // grab the next node and remove it from openTiles array
+    myTile = openTiles.splice(min, 1)[0];
     // is it the destination node?
-    if (myNode.value === endNode.value) {
-      myPath = closedNodes[closedNodes.push(myNode) - 1];
+    if (myTile.value === endTile.value) {
+      myPath = closedTiles[closedTiles.push(myTile) - 1];
       do {
         result.push({ x: myPath.x, y: myPath.y });
       } while ((myPath = myPath.parent));
       // clear the working arrays
-      // console.log(openNodes);
-      aStar = closedNodes = openNodes = [];
+      // console.log(openTiles);
+      aStar = closedTiles = openTiles = [];
       // we want to return start to finish
       result.reverse();
     } // not the destination
     else {
       // find which nearby nodes are walkable
-      myNeighbours = neighbours(pathfinding, myNode);
+      myNeighbours = neighbours(pathfinding, myTile);
       // console.log(myNeighbours);
       // test each one that hasn't been tried already
       for (i = 0, j = myNeighbours.length; i < j; i++) {
-        myPath = createNode(pathfinding, myNode, myNeighbours[i]);
+        myPath = createTile(pathfinding, myTile, myNeighbours[i]);
         if (!aStar[myPath.value]) {
           // estimated cost of this particular route so far
-          myPath.g = myNode.g + distance(pathfinding, myNeighbours[i], myNode);
+          myPath.g = myTile.g + distance(pathfinding, myNeighbours[i], myTile);
           // estimated cost of entire guessed route to the destination
-          myPath.f = myPath.g + distance(pathfinding, myNeighbours[i], endNode);
+          myPath.f = myPath.g + distance(pathfinding, myNeighbours[i], endTile);
           // remember this new path for testing above
-          openNodes.push(myPath);
+          openTiles.push(myPath);
           // mark this node in the world graph as visited
           aStar[myPath.value] = true;
         }
       }
       // remember this route as having no more untested options
-      closedNodes.push(myNode);
+      closedTiles.push(myTile);
     }
   } // keep iterating until until the Open list is empty
 

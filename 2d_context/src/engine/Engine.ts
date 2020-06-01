@@ -3,27 +3,27 @@ import {
   Pathfinding,
   getPath,
   initWorld,
-  // setHitToWorld,
+  PATHFINDING_TILE_SIZE,
   updateBoxInWorld,
   updateConnectorInWorld,
   convertToWorldCoordinates,
   convertToCanvasCoordinates,
 } from "./pathfinding";
-import { seedEntities, seedConnectors,clamp } from "./utils";
-
-import * as m3 from "./math";
-import { Entity } from "./Entity";
+import { clamp } from "./helpers/math";
+import { seedEntities, seedConnectors } from "./helpers/seed";
+import * as m3 from "./helpers/matrix";
+import { Entity } from "./entities";
 
 export interface Connectors {
-  source: number;
-  target: number;
+  source: string;
+  target: string;
 }
 
 export interface UI {
-  selectedId?: number;
+  selectedId?: string;
   isDragging: boolean;
   colorHash: {
-    [key: string]: number;
+    [key: string]: string;
   };
 }
 
@@ -34,11 +34,15 @@ export interface Context {
   height: number;
 }
 
+export interface ById<T> {
+  [key: string]: T;
+}
+
 export class Engine {
   ctx: Context;
   ui: UI;
   pathfinding: Pathfinding;
-  entities: Entity[];
+  entities: ById<Entity>;
   connectors: Connectors[];
 
   constructor(canvas: HTMLCanvasElement) {
@@ -66,9 +70,9 @@ export class Engine {
     }
 
     this.pathfinding = {
-      tileSize: 10,
-      worldHeight: this.ctx.height / 10,
-      worldWidth: this.ctx.width / 10,
+      tileSize: PATHFINDING_TILE_SIZE,
+      worldHeight: this.ctx.height / PATHFINDING_TILE_SIZE,
+      worldWidth: this.ctx.width / PATHFINDING_TILE_SIZE,
       world: [],
     };
     initWorld(this.pathfinding);
@@ -79,19 +83,20 @@ export class Engine {
       colorHash: {},
     };
     this.connectors = seedConnectors(this.entities);
-    
-    this.entities.forEach(({ colorKey }, index) => {
-      this.ui.colorHash[colorKey] = index;
+
+    Object.values(this.entities).forEach(({ colorKey, id }) => {
+      this.ui.colorHash[colorKey] = id;
     });
+    console.log(this.ui.colorHash);
 
     canvas.addEventListener("mousedown", (e) => {
       const x = e.clientX - canvas.offsetLeft;
       const y = e.clientY - canvas.offsetTop;
-      let index = -1;
+      let index = undefined;
       const pixel = this.ctx.hit.getImageData(x, y, 1, 1).data;
       const color = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
       index = this.ui.colorHash[color];
-      if (index !== -1) {
+      if (index) {
         this.ui.isDragging = true;
         this.ui.selectedId = index;
       } else {
@@ -105,15 +110,16 @@ export class Engine {
     canvas.addEventListener("mousemove", (e) => {
       if (this.ui.selectedId !== undefined && this.ui.isDragging) {
         const selectedEntity = this.entities[this.ui.selectedId];
+        const { hitbox } = selectedEntity;
         const x = clamp(
-          e.clientX - canvas.offsetLeft - selectedEntity.meta.w / 2,
+          e.clientX - canvas.offsetLeft - hitbox.w / 2,
           0,
-          this.ctx.width - selectedEntity.meta.w
+          this.ctx.width - hitbox.w
         );
         const y = clamp(
-          e.clientY - canvas.offsetTop - selectedEntity.meta.h / 2,
+          e.clientY - canvas.offsetTop - hitbox.h / 2,
           0,
-          this.ctx.height - selectedEntity.meta.h
+          this.ctx.height - hitbox.h
         );
 
         selectedEntity.localMatrix = m3.translation(x, y);
@@ -137,46 +143,43 @@ export class Engine {
     this.ctx.drawing.clearRect(0, 0, this.ctx.width, this.ctx.height);
     this.ctx.hit.clearRect(0, 0, this.ctx.width, this.ctx.height);
     initWorld(this.pathfinding);
-    // console.log(this.pathfinding.world);
+    // console.log(this.pathfinding.global);
   }
 
   drawScene() {
     this.clear();
 
-    this.entities.forEach((entity, id) => {
-      entity.updateWorldMatrix(entity.parent?.worldMatrix);
+    Object.values(this.entities).forEach((entity) => {
+      entity.updateGlobalMatrix(entity.parent?.globalMatrix);
 
-      entity.draw(this.ctx.drawing);
-      if (this.ui.selectedId === id) {
-        entity.drawSelected(this.ctx.drawing);
-      }
-      entity.drawHit(this.ctx.hit);
+      entity.draw(this.ctx, this.ui.selectedId);
+      // entity.drawHit(this.ctx);
 
-      updateBoxInWorld(this.ctx.hit, this.pathfinding, entity, 5);
+      updateBoxInWorld(this.pathfinding, entity, 5);
     });
 
     this.connectors.forEach((connector) => {
       const sourceEntity = this.entities[connector.source];
       const targetEntity = this.entities[connector.target];
-      updateBoxInWorld(this.ctx.hit, this.pathfinding, sourceEntity, 0);
-      updateBoxInWorld(this.ctx.hit, this.pathfinding, targetEntity, 0);
+      updateBoxInWorld(this.pathfinding, sourceEntity.children[0], 0);
+      updateBoxInWorld(this.pathfinding, targetEntity.children[0], 0);
 
       const path = getPath(
         this.pathfinding,
         convertToWorldCoordinates(
           this.pathfinding,
-          sourceEntity.center(this.ctx.hit)
+          sourceEntity.children[0].getCenter()
         ),
         convertToWorldCoordinates(
           this.pathfinding,
-          targetEntity.center(this.ctx.hit)
+          targetEntity.children[0].getCenter()
         )
       );
       this.drawPath(path);
 
       updateConnectorInWorld(this.pathfinding, path, 2);
-      updateBoxInWorld(this.ctx.hit, this.pathfinding, sourceEntity, 5);
-      updateBoxInWorld(this.ctx.hit, this.pathfinding, targetEntity, 5);
+      updateBoxInWorld(this.pathfinding, sourceEntity.children[0], 5);
+      updateBoxInWorld(this.pathfinding, targetEntity.children[0], 5);
     });
   }
 
