@@ -87,7 +87,6 @@ export class Engine {
     Object.values(this.entities).forEach(({ colorKey, id }) => {
       this.ui.colorHash[colorKey] = id;
     });
-    console.log(this.ui.colorHash);
 
     canvas.addEventListener("mousedown", (e) => {
       const x = e.clientX - canvas.offsetLeft;
