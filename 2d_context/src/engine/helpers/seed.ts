@@ -4,7 +4,7 @@ import { Connectors, ById } from "../Engine";
 import * as m3 from "./matrix";
 
 const ENTITIES_NUMBER_OF = 5;
-const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF); // would be wierd to have more connectors than entities.
+const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF - 1); // would be wierd to have more connectors than entities.
 const ENTITY_SQUARE_SIDE = 50;
 
 export function genRandomColor() {
@@ -27,10 +27,10 @@ export function seedEntities(
         Math.floor(Math.random() * width - ENTITY_SQUARE_SIDE / 2),
         Math.floor(Math.random() * height - ENTITY_SQUARE_SIDE / 2)
       ),
-      height: ENTITY_SQUARE_SIDE * 2,
+      height: ENTITY_SQUARE_SIDE * 1.5,
       width: ENTITY_SQUARE_SIDE,
       inputCount: Math.floor(Math.random() * 3) + 1,
-      outputCount: 1,
+      outputCount: Math.floor(Math.random() * 3) + 1,
     });
 
     item.setParent(root);
@@ -53,23 +53,34 @@ export function seedConnectors(entities: ById<Entity>): Connectors[] {
     // get a random index,
     const rnd = Math.floor(Math.random() * maxNode);
     const node = entities[entityKeys[rnd]] as Node;
-    console.log(node);
     return node;
   };
+
+  const usedAnchorIds: string[] = [];
 
   while (connectors.length < CONNECTORS_NUMBER_OF && maxNode > 0) {
     // select two random indices, connect them
     const nodeSource = findRandomNode();
-    const sourceAnchorIndex = Math.floor(nodeSource.outputIds.length - 1);
     const nodeTarget = findRandomNode();
+    if (nodeSource.id === nodeTarget.id) {
+      continue;
+    }
+    const sourceAnchorIndex = Math.floor(nodeSource.outputIds.length - 1);
     const targetAnchorIndex = Math.floor(nodeTarget.inputIds.length - 1);
-    const source = nodeSource.children[
-      nodeSource.outputIds[sourceAnchorIndex]
-    ] as Anchor;
-    const target = nodeTarget.children[
-      nodeTarget.inputIds[targetAnchorIndex]
-    ] as Anchor;
+    const sourceAnchorId = nodeSource.outputIds[sourceAnchorIndex];
+    const targetAnchorId = nodeTarget.inputIds[targetAnchorIndex];
+    if (
+      usedAnchorIds.includes(sourceAnchorId) ||
+      usedAnchorIds.includes(targetAnchorId)
+    ) {
+      continue;
+    }
+
+    const source = nodeSource.children[sourceAnchorId] as Anchor;
+    const target = nodeTarget.children[targetAnchorId] as Anchor;
     connectors.push({ source, target });
+    usedAnchorIds.push(source.id);
+    usedAnchorIds.push(target.id);
   }
 
   return connectors;
