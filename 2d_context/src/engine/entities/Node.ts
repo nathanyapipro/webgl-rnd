@@ -11,21 +11,36 @@ export class Node extends Entity {
     localMatrix: number[];
     height: number;
     width: number;
+    inputCount: number;
+    outputCount: number;
   }) {
     const hitbox = {
       dx: 0,
       dy: 0,
       h: data.height,
-      w: data.width,
+      w: Math.max(data.inputCount, data.outputCount) * 50,
     };
     super({ ...data, type: "NODE", hitbox });
     this.height = data.height;
-    this.width = data.width;
-    const anchor = new Anchor({
-      localMatrix: matrix.translation(this.height / 2 - 10, 0),
-    });
+    this.width = Math.max(data.inputCount, data.outputCount) * 50;
 
-    anchor.setParent(this);
+    for (let i = 0; i < data.inputCount; i++) {
+      const x0 = (this.width / (data.inputCount + 1)) * (i + 1) - 10;
+      const anchor = new Anchor({
+        localMatrix: matrix.translation(x0, 0),
+      });
+
+      anchor.setParent(this);
+    }
+
+    for (let i = 0; i < data.outputCount; i++) {
+      const x0 = (this.width / (data.outputCount + 1)) * (i + 1) - 10;
+      const anchor = new Anchor({
+        localMatrix: matrix.translation(x0, this.height - 10),
+      });
+
+      anchor.setParent(this);
+    }
   }
 
   getCollisionRect() {

@@ -4,8 +4,8 @@ import { Connectors, ById } from "../Engine";
 
 import * as m3 from "./matrix";
 
-const ENTITIES_NUMBER_OF = 20;
-const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF * 0.66) / 2; // would be wierd to have more connectors than entities.
+const ENTITIES_NUMBER_OF = 10;
+const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF) / 2; // would be wierd to have more connectors than entities.
 const ENTITY_SQUARE_SIDE = 50;
 
 export function genRandomColor() {
@@ -31,8 +31,10 @@ export function seedEntities(width: number, height: number): ById<Entity> {
         Math.floor(Math.random() * width - ENTITY_SQUARE_SIDE / 2),
         Math.floor(Math.random() * height - ENTITY_SQUARE_SIDE / 2)
       ),
-      height: ENTITY_SQUARE_SIDE,
+      height: ENTITY_SQUARE_SIDE * 2,
       width: ENTITY_SQUARE_SIDE,
+      inputCount: Math.floor(Math.random() * 3) + 1,
+      outputCount: 1,
     });
 
     item.setParent(Root);
