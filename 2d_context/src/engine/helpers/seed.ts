@@ -19,7 +19,7 @@ export function seedEntities(
   width: number,
   height: number
 ): ById<Entity> {
-  const entities = {} as ById<Entity>;
+  let entities = {} as ById<Entity>;
 
   for (let itr = 0; itr < ENTITIES_NUMBER_OF; itr++) {
     const item = new Node({
@@ -34,14 +34,17 @@ export function seedEntities(
     });
 
     item.setParent(root);
-    entities[item.id] = item;
+    entities = { ...entities, ...item.children };
   }
+  entities = { ...entities, ...root.children };
 
   return entities;
 }
 
 export function seedConnectors(entities: ById<Entity>): Connectors[] {
-  let entityKeys = Object.keys(entities);
+  let entityKeys = Object.keys(entities).filter(
+    (key) => entities[key].type === "NODE"
+  );
   let maxNode = entityKeys.length;
   const connectors: Connectors[] = [];
 

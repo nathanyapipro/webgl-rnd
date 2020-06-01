@@ -1,5 +1,6 @@
 import { Entity } from "./Entity";
 import { Context } from "../Engine";
+import { Pathfinding } from "../Pathfinding";
 
 export class Anchor extends Entity {
   height: number;
@@ -11,7 +12,7 @@ export class Anchor extends Entity {
       h: 10,
       w: 20,
     };
-    super({ ...data, type: "NODE", hitbox });
+    super({ ...data, type: "ANCHOR", hitbox });
     this.height = hitbox.h;
     this.width = hitbox.w;
   }
@@ -36,7 +37,7 @@ export class Anchor extends Entity {
     };
   }
 
-  draw(ctx: Context, selectedId?: string) {
+  draw(ctx: Context, pathfinding: Pathfinding, selectedId?: string) {
     ctx.drawing.resetTransform();
     const m = this.globalMatrix;
     ctx.drawing.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);
@@ -44,5 +45,11 @@ export class Anchor extends Entity {
     ctx.drawing.fillStyle = "#18a0fb";
     ctx.drawing.fillRect(0, 0, this.width, this.height);
     this.drawHit(ctx);
+    pathfinding.updateEntityCollisionRect(this, 5);
+    if (selectedId === this.id) {
+      ctx.drawing.strokeStyle = "#CCCCCC";
+      ctx.drawing.lineWidth = 4;
+      ctx.drawing.strokeRect(2, 2, this.width - 2, this.height - 2);
+    }
   }
 }

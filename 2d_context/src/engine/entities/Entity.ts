@@ -2,7 +2,7 @@ import { genRandomColor } from "../helpers/hit";
 import { Context, ById, Engine } from "../Engine";
 import * as matrix from "../helpers/matrix";
 import { v1 as uuidv1 } from "uuid";
-import { PATHFINDING_TILE_SIZE } from "../pathfinding";
+import { PATHFINDING_TILE_SIZE, Pathfinding } from "../Pathfinding";
 
 export interface Offset {
   dx: number;
@@ -48,6 +48,13 @@ export abstract class Entity {
     this.colorKey = genRandomColor();
     this.children = {};
     this.hitbox = data.hitbox;
+  }
+
+  updateColorHash(colorHash: { [key: string]: string }) {
+    colorHash[this.colorKey] = this.id;
+    Object.values(this.children).forEach(function (child) {
+      child.updateColorHash(colorHash);
+    });
   }
 
   setParent(parent: Entity) {
@@ -128,5 +135,9 @@ export abstract class Entity {
 
   abstract getCenter(): Location;
 
-  abstract draw(ctx: Context, selectedId?: string): void;
+  abstract draw(
+    ctx: Context,
+    pathfinding: Pathfinding,
+    selectedId?: string
+  ): void;
 }

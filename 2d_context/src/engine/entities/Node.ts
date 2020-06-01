@@ -3,7 +3,7 @@ import { Location } from "./Entity";
 import * as matrix from "../helpers/matrix";
 import { clamp } from "../helpers/math";
 import { Context, Engine } from "../Engine";
-import { PATHFINDING_TILE_SIZE } from "../pathfinding";
+import { PATHFINDING_TILE_SIZE, Pathfinding } from "../Pathfinding";
 
 export class Node extends Entity {
   height: number;
@@ -87,7 +87,7 @@ export class Node extends Entity {
     };
   }
 
-  draw(ctx: Context, selectedId?: string) {
+  draw(ctx: Context, pathfinding: Pathfinding, selectedId?: string) {
     ctx.drawing.globalCompositeOperation = "source-over";
     ctx.drawing.resetTransform();
     const m = this.globalMatrix;
@@ -101,8 +101,9 @@ export class Node extends Entity {
       ctx.drawing.strokeRect(2, 2, this.width - 2, this.height - 2);
     }
     this.drawHit(ctx);
+    pathfinding.updateEntityCollisionRect(this, 5);
     Object.values(this.children).forEach((child) =>
-      child.draw(ctx, selectedId)
+      child.draw(ctx, pathfinding, selectedId)
     );
   }
 }

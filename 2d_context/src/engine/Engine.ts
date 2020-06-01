@@ -1,15 +1,4 @@
-import {
-  Position,
-  Pathfinding,
-  getPath,
-  initWorld,
-  PATHFINDING_TILE_SIZE,
-  updateBoxInWorld,
-  updateConnectorInWorld,
-  convertToWorldCoordinates,
-  convertToCanvasCoordinates,
-} from "./pathfinding";
-import { clamp } from "./helpers/math";
+import { Position, Pathfinding } from "./Pathfinding";
 import { seedEntities, seedConnectors } from "./helpers/seed";
 import * as m3 from "./helpers/matrix";
 import { Entity, Anchor, Group } from "./entities";
@@ -74,13 +63,7 @@ export class Engine {
       throw new Error();
     }
 
-    this.pathfinding = {
-      tileSize: PATHFINDING_TILE_SIZE,
-      worldHeight: Math.floor(this.ctx.height / PATHFINDING_TILE_SIZE),
-      worldWidth: Math.floor(this.ctx.width / PATHFINDING_TILE_SIZE),
-      world: [],
-    };
-    initWorld(this.pathfinding);
+    this.pathfinding = new Pathfinding(this.ctx);
     this.root = new Group({
       id: "root",
       localMatrix: m3.translation(0, 0),
@@ -95,10 +78,10 @@ export class Engine {
     };
     this.connectors = seedConnectors(this.entities);
     this.root.updateGlobalMatrix();
-
-    Object.values(this.entities).forEach(({ colorKey, id }) => {
-      this.ui.colorHash[colorKey] = id;
-    });
+    this.root.updateColorHash(this.ui.colorHash);
+    // Object.values(this.entities).forEach(({ colorKey, id }) => {
+    //   this.ui.colorHash[colorKey] = id;
+    // });
 
     requestAnimationFrame((time) => this.drawScene(time));
 
@@ -168,7 +151,7 @@ export class Engine {
     this.ctx.hit.resetTransform();
     this.ctx.drawing.clearRect(0, 0, this.ctx.width, this.ctx.height);
     this.ctx.hit.clearRect(0, 0, this.ctx.width, this.ctx.height);
-    initWorld(this.pathfinding);
+    this.pathfinding.initWorld();
     // console.log(this.pathfinding.global);
   }
 
@@ -181,28 +164,22 @@ export class Engine {
     console.log("DRAW");
     // render the frame
     this.clear();
-    Object.values(this.entities).forEach((entity) => {
-      entity.draw(this.ctx, this.ui.selectedId);
-      // entity.drawHit(this.ctx);
-
-      updateBoxInWorld(this.pathfinding, entity, 5);
-    });
+    this.root.draw(this.ctx, this.pathfinding, this.ui.selectedId);
 
     this.connectors.forEach((connector) => {
       const { source, target } = connector;
-      updateBoxInWorld(this.pathfinding, source, 0);
-      updateBoxInWorld(this.pathfinding, target, 0);
+      this.pathfinding.updateEntityCollisionRect(source, 0);
+      this.pathfinding.updateEntityCollisionRect(target, 0);
 
-      const path = getPath(
-        this.pathfinding,
-        convertToWorldCoordinates(this.pathfinding, source.getCenter()),
-        convertToWorldCoordinates(this.pathfinding, target.getCenter())
+      const path = this.pathfinding.getPath(
+        this.pathfinding.toWorldPosition(source.getCenter()),
+        this.pathfinding.toWorldPosition(target.getCenter())
       );
       this.drawPath(path);
 
-      updateConnectorInWorld(this.pathfinding, path, 2);
-      updateBoxInWorld(this.pathfinding, source, 5);
-      updateBoxInWorld(this.pathfinding, target, 5);
+      this.pathfinding.updateConnectorCollisionPath(path, 2);
+      this.pathfinding.updateEntityCollisionRect(source, 5);
+      this.pathfinding.updateEntityCollisionRect(target, 5);
     });
 
     // requestAnimationFrame((time) => this.drawScene(time));
@@ -219,13 +196,13 @@ export class Engine {
     this.ctx.drawing.strokeStyle = "black";
     this.ctx.drawing.beginPath();
 
-    const source = convertToCanvasCoordinates(this.pathfinding, path[0]);
+    const source = this.pathfinding.toCanvasPosition(path[0]);
     this.ctx.drawing.moveTo(
       source.x + this.pathfinding.tileSize / 2,
       source.y + this.pathfinding.tileSize / 2
     );
     for (let i = 1; i < path.length; i++) {
-      const next = convertToCanvasCoordinates(this.pathfinding, path[i]);
+      const next = this.pathfinding.toCanvasPosition(path[i]);
       this.ctx.drawing.lineTo(
         next.x + this.pathfinding.tileSize / 2,
         next.y + this.pathfinding.tileSize / 2

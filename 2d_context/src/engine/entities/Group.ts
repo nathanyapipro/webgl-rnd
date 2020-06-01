@@ -1,6 +1,7 @@
 import { Entity } from ".";
 // import * as matrix from "../helpers/matrix";
 import { Context } from "../Engine";
+import { Pathfinding } from "../Pathfinding";
 
 export class Group extends Entity {
   height: number;
@@ -40,7 +41,7 @@ export class Group extends Entity {
     };
   }
 
-  draw(ctx: Context, selectedId?: string) {
+  draw(ctx: Context, pathfinding: Pathfinding, selectedId?: string) {
     ctx.drawing.strokeStyle = "none";
     ctx.drawing.fillStyle = "#000000";
     ctx.drawing.fillRect(0, 0, this.width, this.height);
@@ -50,7 +51,7 @@ export class Group extends Entity {
       ctx.drawing.strokeRect(0, 0, this.width, this.height);
     }
     Object.values(this.children).forEach((child) =>
-      child.draw(ctx, selectedId)
+      child.draw(ctx, pathfinding, selectedId)
     );
   }
 }
