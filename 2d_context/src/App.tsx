@@ -28,15 +28,12 @@ const useGlobalStyles = makeStyles({
 const useStyles = makeStyles({
   root: {
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
     flex: 1,
   },
   canvas: {
-    display: "flex",
-    flex: 0,
-    height: 600,
-    width: 600,
+    display: "block",
+    height: "100vh",
+    width: "100vw",
     border: `2px solid black`,
     borderRadius: 4,
   },
@@ -64,8 +61,6 @@ function App() {
     <div className={classes.root}>
       <canvas
         id="drawing-canvas"
-        height="600"
-        width="600"
         className={classes.canvas}
         ref={drawingCanvasRef}
       />

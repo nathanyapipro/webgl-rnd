@@ -32,6 +32,7 @@ export interface Context {
   hit: CanvasRenderingContext2D;
   width: number;
   height: number;
+  dpr: number;
 }
 
 export interface ById<T> {
@@ -47,35 +48,32 @@ export class Engine {
   connectors: Connectors[];
 
   constructor(canvas: HTMLCanvasElement) {
-    const height = canvas.height;
-    const width = canvas.width;
-
     // Initalize drawing canvas
     const drawingCtx = canvas.getContext("2d");
     // Initialize hit canvas
     const hitCanvas = document.createElement("canvas");
 
     const hitCtx = hitCanvas.getContext("2d");
-
     if (drawingCtx && hitCtx) {
       this.ctx = {
         drawing: drawingCtx,
         hit: hitCtx,
-        height,
-        width,
+        height: 0,
+        width: 0,
+        dpr: window.devicePixelRatio,
       };
-      hitCanvas.height = this.ctx.height;
-      hitCanvas.width = this.ctx.width;
+      this.resize();
     } else {
       throw new Error();
     }
 
     this.pathfinding = {
       tileSize: PATHFINDING_TILE_SIZE,
-      worldHeight: this.ctx.height / PATHFINDING_TILE_SIZE,
-      worldWidth: this.ctx.width / PATHFINDING_TILE_SIZE,
+      worldHeight: Math.floor(this.ctx.height / PATHFINDING_TILE_SIZE),
+      worldWidth: Math.floor(this.ctx.width / PATHFINDING_TILE_SIZE),
       world: [],
     };
+    console.log(this.pathfinding);
     initWorld(this.pathfinding);
     this.root = new Group({
       id: "root",
@@ -141,6 +139,29 @@ export class Engine {
         this.drawScene();
       }
     });
+  }
+
+  resize() {
+    const drawingCanvas = this.ctx.drawing.canvas;
+    const hitCanvas = this.ctx.hit.canvas;
+    // Lookup the size the browser is displaying the canvas.
+
+    const displayWidth = Math.floor(drawingCanvas.clientWidth);
+    const displayHeight = Math.floor(drawingCanvas.clientHeight);
+
+    // Check if the canvas is not the same size.
+    if (
+      drawingCanvas.width !== displayWidth ||
+      drawingCanvas.height !== displayHeight
+    ) {
+      // Make the canvas the same size
+      drawingCanvas.width = displayWidth;
+      drawingCanvas.height = displayHeight;
+      hitCanvas.width = displayWidth;
+      hitCanvas.height = displayHeight;
+      this.ctx.width = displayWidth;
+      this.ctx.height = displayHeight;
+    }
   }
 
   clear() {
