@@ -51,12 +51,6 @@ function App() {
     }
   }, [drawingCanvasRef, engine]);
 
-  useEffect(() => {
-    if (engine) {
-      engine.drawScene();
-    }
-  }, [engine]);
-
   return (
     <div className={classes.root}>
       <canvas

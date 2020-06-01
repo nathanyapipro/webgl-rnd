@@ -1,7 +1,8 @@
 import { genRandomColor } from "../helpers/hit";
-import { Context, ById } from "../Engine";
+import { Context, ById, Engine } from "../Engine";
 import * as matrix from "../helpers/matrix";
 import { v1 as uuidv1 } from "uuid";
+import { PATHFINDING_TILE_SIZE } from "../pathfinding";
 
 export interface Offset {
   dx: number;
@@ -95,18 +96,20 @@ export abstract class Entity {
     };
   }
 
-  abstract getCollisionRect(): Rect;
+  onMouseDown(engine: Engine, mouse: Location): void {}
+  onMouseMove(engine: Engine, mouse: Location): void {}
+  onMouseUp(engine: Engine, mouse: Location): void {}
 
-  // getCollisionHit() {
-  //   const { x, y } = this.getGlobalOrigin();
-  //   const { dx, dy, w, h } = this.hitbox;
-  //   return {
-  //     x: (x - dx -10),
-  //     y: (y - dy -10),
-  //     w: (w + dx + 20),
-  //     h: (h + dy + 20),
-  //   };
-  // }
+  getCollisionRect() {
+    const { x, y } = this.getGlobalOrigin();
+    const { dx, dy, w, h } = this.hitbox;
+    return {
+      x: x - dx - 5 + PATHFINDING_TILE_SIZE / 2,
+      y: y - dy - 5 + PATHFINDING_TILE_SIZE / 2,
+      w: w + dx + 10,
+      h: h + dy + 10,
+    };
+  }
 
   drawHit(ctx: Context) {
     const m = this.globalMatrix;
@@ -118,8 +121,8 @@ export abstract class Entity {
     ctx.hit.fillRect(
       -hitbox.dx,
       -hitbox.dy,
-      hitbox.w + hitbox.dx,
-      hitbox.h + hitbox.dy
+      hitbox.w + hitbox.dx * 2,
+      hitbox.h + hitbox.dy * 2
     );
   }
 

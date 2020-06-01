@@ -14,6 +14,11 @@ import { seedEntities, seedConnectors } from "./helpers/seed";
 import * as m3 from "./helpers/matrix";
 import { Entity, Anchor, Group } from "./entities";
 
+const FRAMES_PER_SECOND = 30; // Valid values are 60,30,20,15,10...
+// set the mim time to render the next frame
+const FRAME_MIN_TIME =
+  (1000 / 60) * (60 / FRAMES_PER_SECOND) - (1000 / 60) * 0.5;
+
 export interface Connectors {
   source: Anchor;
   target: Anchor;
@@ -21,7 +26,7 @@ export interface Connectors {
 
 export interface UI {
   selectedId?: string;
-  isDragging: boolean;
+  isMouseDown: boolean;
   colorHash: {
     [key: string]: string;
   };
@@ -33,6 +38,7 @@ export interface Context {
   width: number;
   height: number;
   dpr: number;
+  lastFrameTime: number;
 }
 
 export interface ById<T> {
@@ -61,6 +67,7 @@ export class Engine {
         height: 0,
         width: 0,
         dpr: window.devicePixelRatio,
+        lastFrameTime: 0,
       };
       this.resize();
     } else {
@@ -73,7 +80,6 @@ export class Engine {
       worldWidth: Math.floor(this.ctx.width / PATHFINDING_TILE_SIZE),
       world: [],
     };
-    console.log(this.pathfinding);
     initWorld(this.pathfinding);
     this.root = new Group({
       id: "root",
@@ -83,7 +89,7 @@ export class Engine {
     });
     this.entities = seedEntities(this.root, this.ctx.width, this.ctx.height);
     this.ui = {
-      isDragging: false,
+      isMouseDown: false,
       selectedId: undefined,
       colorHash: {},
     };
@@ -94,6 +100,8 @@ export class Engine {
       this.ui.colorHash[colorKey] = id;
     });
 
+    requestAnimationFrame((time) => this.drawScene(time));
+
     canvas.addEventListener("mousedown", (e) => {
       const x = e.clientX - canvas.offsetLeft;
       const y = e.clientY - canvas.offsetTop;
@@ -102,45 +110,34 @@ export class Engine {
       const color = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
       index = this.ui.colorHash[color];
       if (index) {
-        this.ui.isDragging = true;
         this.ui.selectedId = index;
+        this.entities[this.ui.selectedId].onMouseDown(this, { x, y });
       } else {
         this.ui.selectedId = undefined;
-        this.ui.isDragging = false;
+        this.ui.isMouseDown = false;
       }
-
-      this.drawScene();
+      this.drawScene(0, true);
     });
 
     canvas.addEventListener("mousemove", (e) => {
-      if (this.ui.selectedId !== undefined && this.ui.isDragging) {
-        const selectedEntity = this.entities[this.ui.selectedId];
-        const { hitbox } = selectedEntity;
-        const x = clamp(
-          e.clientX - canvas.offsetLeft - hitbox.w / 2,
-          0,
-          this.ctx.width - hitbox.w
-        );
-        const y = clamp(
-          e.clientY - canvas.offsetTop - hitbox.h / 2,
-          0,
-          this.ctx.height - hitbox.h
-        );
-
-        selectedEntity.localMatrix = m3.translation(x, y);
-        selectedEntity.updateGlobalMatrix();
-
-        this.drawScene();
+      const x = e.clientX - canvas.offsetLeft;
+      const y = e.clientY - canvas.offsetTop;
+      if (this.ui.selectedId) {
+        this.entities[this.ui.selectedId].onMouseMove(this, { x, y });
       }
+      requestAnimationFrame((time) =>
+        this.drawScene(time, this.ui.isMouseDown)
+      );
     });
 
     canvas.addEventListener("mouseup", (e) => {
-      if (this.ui.selectedId !== undefined && this.ui.isDragging) {
-        this.ui.isDragging = false;
-
-        this.drawScene();
+      const x = e.clientX - canvas.offsetLeft;
+      const y = e.clientY - canvas.offsetTop;
+      if (this.ui.selectedId) {
+        this.entities[this.ui.selectedId].onMouseUp(this, { x, y });
       }
     });
+    this.drawScene(0, true);
   }
 
   resize() {
@@ -175,9 +172,15 @@ export class Engine {
     // console.log(this.pathfinding.global);
   }
 
-  drawScene() {
+  drawScene(time: number, force?: boolean) {
+    if (time - this.ctx.lastFrameTime < FRAME_MIN_TIME && !force) {
+      //skip the frame if the call is too early
+      requestAnimationFrame((time) => this.drawScene(time));
+      return; // return as there is nothing to do
+    }
+    console.log("DRAW");
+    // render the frame
     this.clear();
-
     Object.values(this.entities).forEach((entity) => {
       entity.draw(this.ctx, this.ui.selectedId);
       // entity.drawHit(this.ctx);
@@ -201,6 +204,8 @@ export class Engine {
       updateBoxInWorld(this.pathfinding, source, 5);
       updateBoxInWorld(this.pathfinding, target, 5);
     });
+
+    // requestAnimationFrame((time) => this.drawScene(time));
   }
 
   drawPath(path: Position[]) {

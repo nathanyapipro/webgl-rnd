@@ -1,6 +1,8 @@
 import { Entity, Anchor } from ".";
+import { Location } from "./Entity";
 import * as matrix from "../helpers/matrix";
-import { Context, ById } from "../Engine";
+import { clamp } from "../helpers/math";
+import { Context, Engine } from "../Engine";
 import { PATHFINDING_TILE_SIZE } from "../pathfinding";
 
 export class Node extends Entity {
@@ -46,6 +48,23 @@ export class Node extends Entity {
       this.outputIds.push(anchor.id);
       anchor.setParent(this);
     }
+  }
+
+  onMouseDown(engine: Engine, mouse: Location): void {
+    engine.ui.isMouseDown = true;
+  }
+  onMouseMove(engine: Engine, mouse: Location): void {
+    if (engine.ui.isMouseDown) {
+      const { hitbox } = this;
+      const x = clamp(mouse.x - hitbox.w / 2, 0, engine.ctx.width - hitbox.w);
+      const y = clamp(mouse.y - hitbox.h / 2, 0, engine.ctx.height - hitbox.h);
+
+      this.localMatrix = matrix.translation(x, y);
+      this.updateGlobalMatrix();
+    }
+  }
+  onMouseUp(engine: Engine, mouse: Location): void {
+    engine.ui.isMouseDown = false;
   }
 
   getCollisionRect() {

@@ -43,5 +43,6 @@ export class Anchor extends Entity {
     ctx.drawing.strokeStyle = "none";
     ctx.drawing.fillStyle = "#18a0fb";
     ctx.drawing.fillRect(0, 0, this.width, this.height);
+    this.drawHit(ctx);
   }
 }
