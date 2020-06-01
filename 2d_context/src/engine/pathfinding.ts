@@ -113,7 +113,7 @@ export function distance(
   return (
     Math.abs(node.x - goal.x) +
     Math.abs(node.y - goal.y) +
-    pathfinding.world[node.x][node.y] * 2
+    pathfinding.world[node.x][node.y]
   );
 }
 

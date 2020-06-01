@@ -1,6 +1,7 @@
 import { Entity, Anchor } from ".";
 import * as matrix from "../helpers/matrix";
 import { Context } from "../Engine";
+import { PATHFINDING_TILE_SIZE } from "../pathfinding";
 
 export class Node extends Entity {
   height: number;
@@ -31,8 +32,8 @@ export class Node extends Entity {
     const { x, y } = this.getGlobalOrigin();
     const { dx, dy, w, h } = this.hitbox;
     return {
-      x: x - dx - 5,
-      y: y - dy - 5,
+      x: x - dx - 5 + PATHFINDING_TILE_SIZE / 2,
+      y: y - dy - 5 + PATHFINDING_TILE_SIZE / 2,
       w: w + dx + 10,
       h: h + dy + 10,
     };

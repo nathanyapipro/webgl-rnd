@@ -7,7 +7,7 @@ export class Anchor extends Entity {
   constructor(data: { localMatrix: number[] }) {
     const hitbox = {
       dx: 0,
-      dy: 15,
+      dy: 0,
       h: 10,
       w: 20,
     };
