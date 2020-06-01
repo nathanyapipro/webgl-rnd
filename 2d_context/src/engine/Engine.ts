@@ -184,6 +184,7 @@ export class Engine {
   }
 
   drawPath(path: Position[]) {
+    this.ctx.drawing.globalCompositeOperation = "destination-over";
     this.ctx.drawing.resetTransform();
 
     this.ctx.drawing.lineWidth = 2;

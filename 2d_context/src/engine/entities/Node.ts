@@ -31,10 +31,10 @@ export class Node extends Entity {
     const { x, y } = this.getGlobalOrigin();
     const { dx, dy, w, h } = this.hitbox;
     return {
-      x: x - dx - 10,
-      y: y - dy - 10,
-      w: w + dx + 20,
-      h: h + dy + 20,
+      x: x - dx - 5,
+      y: y - dy - 5,
+      w: w + dx + 10,
+      h: h + dy + 10,
     };
   }
 
@@ -48,6 +48,7 @@ export class Node extends Entity {
   }
 
   draw(ctx: Context, selectedId?: string) {
+    ctx.drawing.globalCompositeOperation = "source-over";
     ctx.drawing.resetTransform();
     const m = this.globalMatrix;
     ctx.drawing.setTransform(m[0], m[1], m[3], m[4], m[6], m[7]);

@@ -21,9 +21,9 @@ export class Anchor extends Entity {
     const { dx, dy, w, h } = this.hitbox;
     return {
       x: x - dx - 0,
-      y: y - dy - 10,
+      y: y - dy - 5,
       w: w + dx + 0,
-      h: h + dy + 20,
+      h: h + dy + 10,
     };
   }
 
