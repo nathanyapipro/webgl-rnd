@@ -1,5 +1,5 @@
 import { genRandomColor } from "../helpers/hit";
-import { Context } from "../Engine";
+import { Context, ById } from "../Engine";
 import * as matrix from "../helpers/matrix";
 import { v1 as uuidv1 } from "uuid";
 
@@ -31,7 +31,7 @@ export abstract class Entity {
   localMatrix: number[];
   globalMatrix: number[];
   parent?: Entity;
-  children: Entity[];
+  children: ById<Entity>;
   hitbox: Hitbox;
 
   constructor(data: {
@@ -45,20 +45,20 @@ export abstract class Entity {
     this.localMatrix = [...data.localMatrix];
     this.globalMatrix = [...this.localMatrix];
     this.colorKey = genRandomColor();
-    this.children = [];
+    this.children = {};
     this.hitbox = data.hitbox;
   }
 
   setParent(parent: Entity) {
     if (this.parent) {
-      var ndx = this.parent.children.indexOf(this);
-      if (ndx >= 0) {
-        this.parent.children.splice(ndx, 1);
+      const ndx = this.parent.children[this.id];
+      if (ndx) {
+        delete this.parent.children[this.id];
       }
     }
     // Add us to our new parent
     if (parent) {
-      parent.children.push(this);
+      parent.children[this.id] = this;
     }
     this.parent = parent;
   }
@@ -74,7 +74,7 @@ export abstract class Entity {
 
     // now process all the children
     const globalMatrix = this.globalMatrix;
-    this.children.forEach(function (child) {
+    Object.values(this.children).forEach(function (child) {
       child.updateGlobalMatrix(globalMatrix);
     });
   }

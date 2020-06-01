@@ -49,6 +49,8 @@ export class Group extends Entity {
       ctx.drawing.lineWidth = 4;
       ctx.drawing.strokeRect(0, 0, this.width, this.height);
     }
-    this.children.forEach((child) => child.draw(ctx, selectedId));
+    Object.values(this.children).forEach((child) =>
+      child.draw(ctx, selectedId)
+    );
   }
 }

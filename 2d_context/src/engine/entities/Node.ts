@@ -1,11 +1,14 @@
 import { Entity, Anchor } from ".";
 import * as matrix from "../helpers/matrix";
-import { Context } from "../Engine";
+import { Context, ById } from "../Engine";
 import { PATHFINDING_TILE_SIZE } from "../pathfinding";
 
 export class Node extends Entity {
   height: number;
   width: number;
+  inputIds: string[];
+  outputIds: string[];
+
   constructor(data: {
     id?: string;
     localMatrix: number[];
@@ -23,13 +26,15 @@ export class Node extends Entity {
     super({ ...data, type: "NODE", hitbox });
     this.height = data.height;
     this.width = Math.max(data.inputCount, data.outputCount) * 50;
+    this.inputIds = [];
+    this.outputIds = [];
 
     for (let i = 0; i < data.inputCount; i++) {
       const x0 = (this.width / (data.inputCount + 1)) * (i + 1) - 10;
       const anchor = new Anchor({
         localMatrix: matrix.translation(x0, 0),
       });
-
+      this.inputIds.push(anchor.id);
       anchor.setParent(this);
     }
 
@@ -38,7 +43,7 @@ export class Node extends Entity {
       const anchor = new Anchor({
         localMatrix: matrix.translation(x0, this.height - 10),
       });
-
+      this.outputIds.push(anchor.id);
       anchor.setParent(this);
     }
   }
@@ -77,6 +82,8 @@ export class Node extends Entity {
       ctx.drawing.strokeRect(2, 2, this.width - 2, this.height - 2);
     }
     this.drawHit(ctx);
-    this.children.forEach((child) => child.draw(ctx, selectedId));
+    Object.values(this.children).forEach((child) =>
+      child.draw(ctx, selectedId)
+    );
   }
 }

@@ -12,11 +12,11 @@ import {
 import { clamp } from "./helpers/math";
 import { seedEntities, seedConnectors } from "./helpers/seed";
 import * as m3 from "./helpers/matrix";
-import { Entity } from "./entities";
+import { Entity, Anchor, Group } from "./entities";
 
 export interface Connectors {
-  source: string;
-  target: string;
+  source: Anchor;
+  target: Anchor;
 }
 
 export interface UI {
@@ -42,6 +42,7 @@ export class Engine {
   ctx: Context;
   ui: UI;
   pathfinding: Pathfinding;
+  root: Group;
   entities: ById<Entity>;
   connectors: Connectors[];
 
@@ -76,7 +77,13 @@ export class Engine {
       world: [],
     };
     initWorld(this.pathfinding);
-    this.entities = seedEntities(this.ctx.width, this.ctx.height);
+    this.root = new Group({
+      id: "root",
+      localMatrix: m3.translation(0, 0),
+      height: 0,
+      width: 0,
+    });
+    this.entities = seedEntities(this.root, this.ctx.width, this.ctx.height);
     this.ui = {
       isDragging: false,
       selectedId: undefined,
@@ -147,10 +154,9 @@ export class Engine {
 
   drawScene() {
     this.clear();
+    this.root.updateGlobalMatrix();
 
     Object.values(this.entities).forEach((entity) => {
-      entity.updateGlobalMatrix(entity.parent?.globalMatrix);
-
       entity.draw(this.ctx, this.ui.selectedId);
       // entity.drawHit(this.ctx);
 
@@ -158,27 +164,20 @@ export class Engine {
     });
 
     this.connectors.forEach((connector) => {
-      const sourceEntity = this.entities[connector.source];
-      const targetEntity = this.entities[connector.target];
-      updateBoxInWorld(this.pathfinding, sourceEntity.children[0], 0);
-      updateBoxInWorld(this.pathfinding, targetEntity.children[0], 0);
+      const { source, target } = connector;
+      updateBoxInWorld(this.pathfinding, source, 0);
+      updateBoxInWorld(this.pathfinding, target, 0);
 
       const path = getPath(
         this.pathfinding,
-        convertToWorldCoordinates(
-          this.pathfinding,
-          sourceEntity.children[0].getCenter()
-        ),
-        convertToWorldCoordinates(
-          this.pathfinding,
-          targetEntity.children[0].getCenter()
-        )
+        convertToWorldCoordinates(this.pathfinding, source.getCenter()),
+        convertToWorldCoordinates(this.pathfinding, target.getCenter())
       );
       this.drawPath(path);
 
       updateConnectorInWorld(this.pathfinding, path, 2);
-      updateBoxInWorld(this.pathfinding, sourceEntity.children[0], 5);
-      updateBoxInWorld(this.pathfinding, targetEntity.children[0], 5);
+      updateBoxInWorld(this.pathfinding, source, 5);
+      updateBoxInWorld(this.pathfinding, target, 5);
     });
   }
 
