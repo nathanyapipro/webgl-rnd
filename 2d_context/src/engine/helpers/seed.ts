@@ -65,8 +65,12 @@ export function seedConnectors(entities: ById<Entity>): Connectors[] {
     if (nodeSource.id === nodeTarget.id) {
       continue;
     }
-    const sourceAnchorIndex = Math.floor(nodeSource.outputIds.length - 1);
-    const targetAnchorIndex = Math.floor(nodeTarget.inputIds.length - 1);
+    const sourceAnchorIndex = Math.floor(
+      Math.random() * nodeSource.outputIds.length
+    );
+    const targetAnchorIndex = Math.floor(
+      Math.random() * nodeTarget.inputIds.length
+    );
     const sourceAnchorId = nodeSource.outputIds[sourceAnchorIndex];
     const targetAnchorId = nodeTarget.inputIds[targetAnchorIndex];
     if (
