@@ -153,7 +153,7 @@ export function createTile(
     // pointer to another Tile object
     parent: parent,
     // array index of this Tile in the world linear array
-    value: point.x + point.y * pathfinding.worldHeight,
+    value: point.x * pathfinding.worldWidth + point.y,
     // the location coordinates of this Tile
     x: point.x,
     y: point.y,

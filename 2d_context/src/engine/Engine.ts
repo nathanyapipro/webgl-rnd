@@ -88,6 +88,7 @@ export class Engine {
       colorHash: {},
     };
     this.connectors = seedConnectors(this.entities);
+    this.root.updateGlobalMatrix();
 
     Object.values(this.entities).forEach(({ colorKey, id }) => {
       this.ui.colorHash[colorKey] = id;
@@ -127,6 +128,7 @@ export class Engine {
         );
 
         selectedEntity.localMatrix = m3.translation(x, y);
+        selectedEntity.updateGlobalMatrix();
 
         this.drawScene();
       }
@@ -175,7 +177,6 @@ export class Engine {
 
   drawScene() {
     this.clear();
-    this.root.updateGlobalMatrix();
 
     Object.values(this.entities).forEach((entity) => {
       entity.draw(this.ctx, this.ui.selectedId);
@@ -203,22 +204,26 @@ export class Engine {
   }
 
   drawPath(path: Position[]) {
+    if (path.length === 0) {
+      return;
+    }
     this.ctx.drawing.globalCompositeOperation = "destination-over";
     this.ctx.drawing.resetTransform();
 
     this.ctx.drawing.lineWidth = 2;
     this.ctx.drawing.strokeStyle = "black";
     this.ctx.drawing.beginPath();
-    for (let i = 0; i < path.length - 1; i++) {
-      const source = convertToCanvasCoordinates(this.pathfinding, path[i]);
-      const target = convertToCanvasCoordinates(this.pathfinding, path[i + 1]);
-      this.ctx.drawing.moveTo(
-        source.x + this.pathfinding.tileSize / 2,
-        source.y + this.pathfinding.tileSize / 2
-      );
+
+    const source = convertToCanvasCoordinates(this.pathfinding, path[0]);
+    this.ctx.drawing.moveTo(
+      source.x + this.pathfinding.tileSize / 2,
+      source.y + this.pathfinding.tileSize / 2
+    );
+    for (let i = 1; i < path.length; i++) {
+      const next = convertToCanvasCoordinates(this.pathfinding, path[i]);
       this.ctx.drawing.lineTo(
-        target.x + this.pathfinding.tileSize / 2,
-        target.y + this.pathfinding.tileSize / 2
+        next.x + this.pathfinding.tileSize / 2,
+        next.y + this.pathfinding.tileSize / 2
       );
     }
 

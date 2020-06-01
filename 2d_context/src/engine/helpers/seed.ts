@@ -3,7 +3,7 @@ import { Connectors, ById } from "../Engine";
 
 import * as m3 from "./matrix";
 
-const ENTITIES_NUMBER_OF = 20;
+const ENTITIES_NUMBER_OF = 10;
 const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF - 1); // would be wierd to have more connectors than entities.
 const ENTITY_SQUARE_SIDE = 50;
 
