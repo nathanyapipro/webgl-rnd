@@ -3,8 +3,8 @@ import { Connectors, ById } from "../Engine";
 
 import * as m3 from "./matrix";
 
-const ENTITIES_NUMBER_OF = 10;
-const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF) / 2; // would be wierd to have more connectors than entities.
+const ENTITIES_NUMBER_OF = 5;
+const CONNECTORS_NUMBER_OF = Math.floor(ENTITIES_NUMBER_OF); // would be wierd to have more connectors than entities.
 const ENTITY_SQUARE_SIDE = 50;
 
 export function genRandomColor() {
