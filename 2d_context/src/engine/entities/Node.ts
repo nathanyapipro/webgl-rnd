@@ -3,7 +3,7 @@ import { Location } from "./Entity";
 import * as matrix from "../helpers/matrix";
 import { clamp } from "../helpers/math";
 import { Context, Engine } from "../Engine";
-import { PATHFINDING_TILE_SIZE, Pathfinding } from "../Pathfinding";
+import { PATHFINDING_TILE_SIZE, Pathfinding } from "../pathfinding";
 
 export class Node extends Entity {
   height: number;

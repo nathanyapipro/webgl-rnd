@@ -1,4 +1,4 @@
-import { Position, Pathfinding } from "./Pathfinding";
+import { Position, Pathfinding } from "./pathfinding";
 import { seedEntities, seedConnectors } from "./helpers/seed";
 import * as m3 from "./helpers/matrix";
 import { Entity, Anchor, Group } from "./entities";

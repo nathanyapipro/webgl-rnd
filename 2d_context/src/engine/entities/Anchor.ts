@@ -1,6 +1,6 @@
 import { Entity } from "./Entity";
 import { Context } from "../Engine";
-import { Pathfinding } from "../Pathfinding";
+import { Pathfinding } from "../pathfinding";
 
 export class Anchor extends Entity {
   height: number;

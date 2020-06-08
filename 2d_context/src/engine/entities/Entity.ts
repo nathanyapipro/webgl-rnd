@@ -2,7 +2,7 @@ import { genRandomColor } from "../helpers/hit";
 import { Context, ById, Engine } from "../Engine";
 import * as matrix from "../helpers/matrix";
 import { v1 as uuidv1 } from "uuid";
-import { PATHFINDING_TILE_SIZE, Pathfinding } from "../Pathfinding";
+import { PATHFINDING_TILE_SIZE, Pathfinding } from "../pathfinding";
 
 export interface Offset {
   dx: number;

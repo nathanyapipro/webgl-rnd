@@ -1,7 +1,7 @@
 import { Entity } from ".";
 // import * as matrix from "../helpers/matrix";
 import { Context } from "../Engine";
-import { Pathfinding } from "../Pathfinding";
+import { Pathfinding } from "../pathfinding";
 
 export class Group extends Entity {
   height: number;
